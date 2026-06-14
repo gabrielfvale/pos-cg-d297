@@ -1,3 +1,24 @@
+<<<<<<< HEAD
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+UserSettings/
+
+MemoryCaptures/
+
+Assets/AssetStoreTools*
+
+.vs/
+.vscode/
+.idea/
+
+*.csproj
+*.unityproj
+*.sln
+=======
 # This .gitignore file should be placed at the root of your Unity project directory
 #
 # Get latest from https://github.com/github/gitignore/blob/main/Unity.gitignore
@@ -47,12 +68,18 @@ ExportedObj/
 *.unityproj
 *.sln
 *.slnx
+>>>>>>> 964f9fca261244fff05230bda56117c304fe8c17
 *.suo
 *.tmp
 *.user
 *.userprefs
 *.pidb
 *.booproj
+<<<<<<< HEAD
+
+.DS_Store
+Thumbs.db
+=======
 *.svd
 *.pdb
 *.mdb
@@ -104,3 +131,4 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+>>>>>>> 964f9fca261244fff05230bda56117c304fe8c17
