@@ -1,0 +1,17 @@
+crewai
+crewai-tools
+pydantic
+pymupdf
+python-dotenv
+pyyaml
+requests
+litellm
+numpy
+
+# Embeddings locais para RAG (CPU, ~90MB download na primeira execução)
+sentence-transformers
+
+# Providers de LLM (instale apenas o que usar)
+google-generativeai       # Google Gemini (provider: google)
+# openai                  # OpenAI, LMStudio, Ollama, endpoints OpenAI-compatible
+# anthropic               # Anthropic Claude

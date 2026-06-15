@@ -1,0 +1,34 @@
+# Configuração local (contém chaves de API e provider pessoal)
+config/config.yaml
+.env
+
+# Outputs e logs gerados em execução
+outputs/
+logs/
+*.db
+*.sqlite3
+
+# Python e caches de testes
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# IDEs e Ferramentas AI
+.vscode/
+.idea/
+.claude/
+*.swp
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
