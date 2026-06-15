@@ -6,10 +6,10 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/CaveEntrance.unity
-    guid: b529872129a18d30e8e8a2dd11417ad9
+    path: Assets/Splash/Splash.unity
+    guid: 7e06d78888fb4fe7a46e6ff9f45d1178
   - enabled: 1
-    path: Assets/Scenes/PaperPortal.unity
-    guid: 9fc0d4010bbf28b4594072e72b8655ab
+    path: Assets/Scenes/PaperSelectorScene.unity
+    guid: 8909719dbf380c99d98984968a052006
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 289c1b55c9541489481df5cc06664110, type: 3}
