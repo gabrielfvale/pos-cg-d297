@@ -22,6 +22,10 @@ public class TableBuilder : MonoBehaviour
     public float fontSize        = 4.5f;
     public float headerFontSize  = 5f;
 
+    [Header("Tamanho do container (canvas units)")]
+    public float totalWidth  = 30f;
+    public float totalHeight = 30f;
+
     [Header("Fonte dos Dados")]
     public bool useStaticPaperData = true;
 
@@ -64,8 +68,6 @@ public class TableBuilder : MonoBehaviour
         RectTransform rt = GetComponent<RectTransform>();
         if (rt == null) rt = gameObject.AddComponent<RectTransform>();
 
-        float totalWidth  = 30f;
-        float totalHeight = 30f;
         rt.sizeDelta = new Vector2(totalWidth, totalHeight);
 
         int totalRows  = rows + 1;
@@ -105,6 +107,7 @@ public class TableBuilder : MonoBehaviour
             hover.useImageSwap     = useStaticPaperData;
             hover.imageTargetName  = imageTargetName;
             hover.rowSprites       = rowSprites;
+            hover.hoverOffsetZ     = -cellHeight * 0.15f;
             hover.SetOrigin(rowGO.transform.localPosition);
         }
     }
