@@ -26,7 +26,7 @@ public class VFXManager : MonoBehaviour
 
     private void Start()
     {
-        PlayEffect(0);
+        //PlayEffect(0);
     }
 
     /// <summary>

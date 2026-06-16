@@ -20,13 +20,13 @@ RenderSettings:
   m_FogDensity: 0.01
   m_LinearFogStart: 0
   m_LinearFogEnd: 300
-  m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
+  m_AmbientSkyColor: {r: 0.02, g: 0.04, b: 0.1, a: 1}
   m_AmbientEquatorColor: {r: 0.114, g: 0.125, b: 0.133, a: 1}
   m_AmbientGroundColor: {r: 0.047, g: 0.043, b: 0.035, a: 1}
   m_AmbientIntensity: 1
-  m_AmbientMode: 0
+  m_AmbientMode: 3
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
-  m_SkyboxMaterial: {fileID: 10304, guid: 0000000000000000f000000000000000, type: 0}
+  m_SkyboxMaterial: {fileID: 0}
   m_HaloStrength: 0.5
   m_FlareStrength: 1
   m_FlareFadeSpeed: 3
@@ -172,9 +172,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 94aeb48640d8bae4fb533158dcfa4461, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TableRowHover
-  hoverOffsetZ: -1.5
+  hoverOffsetZ: -0.1
   animSpeed: 10
-  hoverColor: {r: 0.98, g: 0.92, b: 0.5, a: 1}
+  hoverColor: {r: 0.28875935, g: 0.43751946, b: 0.9716981, a: 1}
   useImageSwap: 1
   rowIndex: 5
   imageTargetName: ExemplosExpressoesGeradas
@@ -946,7 +946,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: aa01d91b3a3b22a439af2925fc100e6c, type: 2}
+  - {fileID: 2100000, guid: 6fcb8f9841a03524cbf7ac4ec1dc566b, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1586,15 +1586,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TableBuilder
   headerColor: {r: 0.15, g: 0.35, b: 0.6, a: 1}
-  rowColorA: {r: 0.95, g: 0.95, b: 0.95, a: 1}
-  rowColorB: {r: 0.85, g: 0.88, b: 0.92, a: 1}
-  borderColor: {r: 0.4, g: 0.4, b: 0.4, a: 1}
+  rowColorA: {r: 0.25658596, g: 0.4282761, b: 0.5849056, a: 1}
+  rowColorB: {r: 0.3278302, g: 0.39478508, b: 0.5, a: 1}
+  borderColor: {r: 0.17795478, g: 0.21617058, b: 0.2924528, a: 1}
   headerTextColor: {r: 1, g: 1, b: 1, a: 1}
   cellTextColor: {r: 0.1, g: 0.1, b: 0.1, a: 1}
   cellWidth: 7.5
   cellHeight: 3.75
   fontSize: 4.5
   headerFontSize: 5
+  rowHoverOffsetZ: -0.5
   totalWidth: 30
   totalHeight: 30
   useStaticPaperData: 1
@@ -2201,7 +2202,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: aa01d91b3a3b22a439af2925fc100e6c, type: 2}
+  - {fileID: 2100000, guid: 6fcb8f9841a03524cbf7ac4ec1dc566b, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -2286,9 +2287,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 94aeb48640d8bae4fb533158dcfa4461, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TableRowHover
-  hoverOffsetZ: -1.5
+  hoverOffsetZ: -0.1
   animSpeed: 10
-  hoverColor: {r: 0.98, g: 0.92, b: 0.5, a: 1}
+  hoverColor: {r: 0.28875935, g: 0.43751946, b: 0.9716981, a: 1}
   useImageSwap: 1
   rowIndex: 4
   imageTargetName: ExemplosExpressoesGeradas
@@ -2898,7 +2899,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.4, g: 0.5, b: 1, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -3227,7 +3228,7 @@ Camera:
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
-  m_BackGroundColor: {r: 0.039215688, g: 0.08627451, b: 0.15686275, a: 1}
+  m_BackGroundColor: {r: 0.01, g: 0.02, b: 0.06, a: 1}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0
@@ -3919,7 +3920,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 235b7948b014d054faf389705c6f3ee0, type: 2}
+  - {fileID: 2100000, guid: 2d83b2153d9a4464b98120c0ab33edd0, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -4427,7 +4428,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.4, g: 0.5, b: 1, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -4505,9 +4506,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 94aeb48640d8bae4fb533158dcfa4461, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TableRowHover
-  hoverOffsetZ: -1.5
+  hoverOffsetZ: -0.1
   animSpeed: 10
-  hoverColor: {r: 0.98, g: 0.92, b: 0.5, a: 1}
+  hoverColor: {r: 0.28875935, g: 0.43751946, b: 0.9716981, a: 1}
   useImageSwap: 1
   rowIndex: 1
   imageTargetName: ExemplosExpressoesGeradas
@@ -4964,7 +4965,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: aa01d91b3a3b22a439af2925fc100e6c, type: 2}
+  - {fileID: 2100000, guid: 6fcb8f9841a03524cbf7ac4ec1dc566b, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -5556,7 +5557,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 235b7948b014d054faf389705c6f3ee0, type: 2}
+  - {fileID: 2100000, guid: 2d83b2153d9a4464b98120c0ab33edd0, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -6078,7 +6079,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0, g: 0.83137256, b: 1, a: 1}
+  m_Color: {r: 0, g: 0.83, b: 1, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -6430,9 +6431,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 94aeb48640d8bae4fb533158dcfa4461, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TableRowHover
-  hoverOffsetZ: -1.5
+  hoverOffsetZ: -0.1
   animSpeed: 10
-  hoverColor: {r: 0.98, g: 0.92, b: 0.5, a: 1}
+  hoverColor: {r: 0.28875935, g: 0.43751946, b: 0.9716981, a: 1}
   useImageSwap: 1
   rowIndex: 0
   imageTargetName: ExemplosExpressoesGeradas
@@ -6653,7 +6654,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0, g: 1, b: 0.53333336, a: 1}
+  m_Color: {r: 0, g: 0.6, b: 1, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -7237,7 +7238,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 235b7948b014d054faf389705c6f3ee0, type: 2}
+  - {fileID: 2100000, guid: 2d83b2153d9a4464b98120c0ab33edd0, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -8738,7 +8739,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0, g: 0.83137256, b: 1, a: 1}
+  m_Color: {r: 0, g: 0.83, b: 1, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -10121,9 +10122,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 94aeb48640d8bae4fb533158dcfa4461, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TableRowHover
-  hoverOffsetZ: -1.5
+  hoverOffsetZ: -0.1
   animSpeed: 10
-  hoverColor: {r: 0.98, g: 0.92, b: 0.5, a: 1}
+  hoverColor: {r: 0.28875935, g: 0.43751946, b: 0.9716981, a: 1}
   useImageSwap: 1
   rowIndex: 6
   imageTargetName: ExemplosExpressoesGeradas
@@ -11991,9 +11992,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 94aeb48640d8bae4fb533158dcfa4461, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TableRowHover
-  hoverOffsetZ: -1.5
+  hoverOffsetZ: -0.1
   animSpeed: 10
-  hoverColor: {r: 0.98, g: 0.92, b: 0.5, a: 1}
+  hoverColor: {r: 0.28875935, g: 0.43751946, b: 0.9716981, a: 1}
   useImageSwap: 1
   rowIndex: 2
   imageTargetName: ExemplosExpressoesGeradas
@@ -13118,8 +13119,8 @@ Light:
   m_Enabled: 1
   serializedVersion: 13
   m_Type: 1
-  m_Color: {r: 0.101960786, g: 0.16470589, b: 0.2901961, a: 1}
-  m_Intensity: 0.4
+  m_Color: {r: 0.5, g: 0.65, b: 1, a: 1}
+  m_Intensity: 0.35
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -13732,8 +13733,8 @@ Light:
   m_Enabled: 1
   serializedVersion: 13
   m_Type: 2
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_Intensity: 1
+  m_Color: {r: 0, g: 0.5, b: 1, a: 1}
+  m_Intensity: 2
   m_Range: 12
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -14663,7 +14664,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0, g: 1, b: 0.53333336, a: 1}
+  m_Color: {r: 0, g: 0.6, b: 1, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -16130,8 +16131,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 1
-  m_fontSizeBase: 1
+  m_fontSize: 3
+  m_fontSizeBase: 3
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -17102,7 +17103,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 0.72156864, b: 0, a: 1}
+  m_Color: {r: 0, g: 0.83, b: 1, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -17342,7 +17343,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: aa01d91b3a3b22a439af2925fc100e6c, type: 2}
+  - {fileID: 2100000, guid: 6fcb8f9841a03524cbf7ac4ec1dc566b, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -17685,7 +17686,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 235b7948b014d054faf389705c6f3ee0, type: 2}
+  - {fileID: 2100000, guid: 2d83b2153d9a4464b98120c0ab33edd0, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -18255,7 +18256,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.4, g: 0.5, b: 1, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -18786,8 +18787,8 @@ Light:
   m_Enabled: 1
   serializedVersion: 13
   m_Type: 2
-  m_Color: {r: 1, g: 0.72156864, b: 0, a: 1}
-  m_Intensity: 0.8
+  m_Color: {r: 0, g: 0.83, b: 1, a: 1}
+  m_Intensity: 1.5
   m_Range: 2
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -19273,9 +19274,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 94aeb48640d8bae4fb533158dcfa4461, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TableRowHover
-  hoverOffsetZ: -1.5
+  hoverOffsetZ: -0.1
   animSpeed: 10
-  hoverColor: {r: 0.98, g: 0.92, b: 0.5, a: 1}
+  hoverColor: {r: 0.28875935, g: 0.43751946, b: 0.9716981, a: 1}
   useImageSwap: 1
   rowIndex: 3
   imageTargetName: ExemplosExpressoesGeradas
@@ -19681,7 +19682,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.4, g: 0.5, b: 1, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -20060,7 +20061,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 0.72156864, b: 0, a: 1}
+  m_Color: {r: 0, g: 0.83, b: 1, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1

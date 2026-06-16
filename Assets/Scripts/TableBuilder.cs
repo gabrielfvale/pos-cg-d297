@@ -22,6 +22,10 @@ public class TableBuilder : MonoBehaviour
     public float fontSize        = 4.5f;
     public float headerFontSize  = 5f;
 
+    [Header("Hover")]
+    [Tooltip("Quanto a linha avança em Z ao hover (canvas units). Negativo = vem para frente. Ajuste aqui.")]
+    public float rowHoverOffsetZ = -0.5f;
+
     [Header("Tamanho do container (canvas units)")]
     public float totalWidth  = 30f;
     public float totalHeight = 30f;
@@ -107,7 +111,7 @@ public class TableBuilder : MonoBehaviour
             hover.useImageSwap     = useStaticPaperData;
             hover.imageTargetName  = imageTargetName;
             hover.rowSprites       = rowSprites;
-            hover.hoverOffsetZ     = -cellHeight * 0.15f;
+            hover.hoverOffsetZ     = -0.15f;
             hover.SetOrigin(rowGO.transform.localPosition);
         }
     }
