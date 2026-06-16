@@ -1,21 +1,37 @@
-# This .gitignore file should be placed at the root of your Unity project directory
+# Unity project gitignore
 #
-# Get latest from https://github.com/github/gitignore/blob/main/Unity.gitignore
-#
-# Objetivo: versionar tudo que é necessário para abrir as CENAS do Unity e
-# seus OBJETOS (Assets + .meta + ProjectSettings + Packages) e o código do
-# PaperCave, ignorando apenas o que é gerado/local/pesado.
-# ==========================================================================
+# Keep the files needed to open the project in Unity:
+# Assets, Packages, ProjectSettings and their .meta files.
+# Ignore generated caches, local editor state, builds and IDE files.
 
+# Unity generated folders. These rules cover both a Unity project at the
+# repository root and a nested project such as "My project/".
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+.utmp/
 
-# ==========================================================================
-# UNITY  (pasta "My project/")
-# As regras são prefixadas com a pasta do projeto. IMPORTANTE: regras com
-# barra inicial (ex.: /Library/) só valem na RAIZ do repositório — como o
-# Unity está em uma subpasta, é preciso escopar com "My project/".
-# ==========================================================================
+# Unity generated/cache files inside Assets.
+[Aa]ssets/[Ss]ceneDependencyCache*
+[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+[Aa]ssets/StreamingAssets/aa*
+[Aa]ssets/AddressableAssetsData/link.xml*
+[Aa]ssets/AddressableAssetsData/*/*.bin*
+[Aa]ssets/Addressables_Temp*
+[Aa]ssets/Plugins/Editor/JetBrains*
+[Aa]ssets/Unity.VisualScripting.Generated/VisualScripting.Flow/UnitOptions.db
+[Aa]ssets/Unity.VisualScripting.Generated/VisualScripting.Flow/UnitOptions.db.meta
+[Aa]ssets/Unity.VisualScripting.Generated/VisualScripting.Core/Property Providers/
+[Aa]ssets/Unity.VisualScripting.Generated/VisualScripting.Core/Property Providers.meta
+ServerData/
 
-# Pastas geradas/locais — NUNCA versionar (Library chega a ~2 GB)
+# Nested Unity project paths kept for compatibility with the previous layout.
 My project/[Ll]ibrary/
 My project/[Tt]emp/
 My project/[Oo]bj/
@@ -26,8 +42,6 @@ My project/[Uu]ser[Ss]ettings/
 My project/[Mm]emoryCaptures/
 My project/[Rr]ecordings/
 My project/.utmp/
-
-# Caches/arquivos gerados dentro de Assets (NÃO afetam cenas nem objetos)
 My project/[Aa]ssets/[Ss]ceneDependencyCache*
 My project/[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
 My project/[Aa]ssets/StreamingAssets/aa*
@@ -37,41 +51,33 @@ My project/[Aa]ssets/Addressables_Temp*
 My project/[Aa]ssets/Plugins/Editor/JetBrains*
 My project/[Aa]ssets/Unity.VisualScripting.Generated/VisualScripting.Flow/UnitOptions.db
 My project/[Aa]ssets/Unity.VisualScripting.Generated/VisualScripting.Flow/UnitOptions.db.meta
-My project/[Aa]ssets/Unity.VisualScripting.Generated/VisualScripting.Core/Property Providers
+My project/[Aa]ssets/Unity.VisualScripting.Generated/VisualScripting.Core/Property Providers/
 My project/[Aa]ssets/Unity.VisualScripting.Generated/VisualScripting.Core/Property Providers.meta
-
-# Addressables (server data)
 My project/ServerData/
 
-# Blender: arquivos de backup não precisam ir para o controle de versão
+# Build artifacts and exports.
+*.apk
+*.aab
+*.app
+*.unitypackage
+*.unitypackage.meta
+ExportedObj/
+
+# Blender backups.
 *.blend1
 *.blend1.meta
 
-# Builds e pacotes gerados
-*.apk
-*.aab
-*.unitypackage
-*.unitypackage.meta
-*.app
-ExportedObj/
-
-# Solução/projetos auto-gerados pela IDE (recriados ao abrir o Unity)
+# IDE/editor generated files.
 *.csproj
 *.unityproj
 *.sln
 *.slnx
->>>>>>> 964f9fca261244fff05230bda56117c304fe8c17
 *.suo
 *.tmp
 *.user
 *.userprefs
 *.pidb
 *.booproj
-<<<<<<< HEAD
-
-.DS_Store
-Thumbs.db
-=======
 *.svd
 *.pdb
 *.mdb
@@ -81,32 +87,11 @@ Thumbs.db
 *.pdb.meta
 *.mdb.meta
 
-# Relatórios de crash / Mono
+# Crash reports.
 sysinfo.txt
 mono_crash.*
 crashlytics-build.properties
 
-# Auto-gerados pelo TestRunner
-InitTestScene*.unity*
-
-# Addressables default ignores, before user customizations
-/ServerData
-/[Aa]ssets/StreamingAssets/aa*
-/[Aa]ssets/AddressableAssetsData/link.xml*
-/[Aa]ssets/Addressables_Temp*
-# By default, Addressables content builds will generate addressables_content_state.bin
-# files in platform-specific subfolders, for example:
-# /Assets/AddressableAssetsData/OSX/addressables_content_state.bin
-/[Aa]ssets/AddressableAssetsData/*/*.bin*
-
-# Visual Scripting auto-generated files
-/[Aa]ssets/Unity.VisualScripting.Generated/VisualScripting.Flow/UnitOptions.db
-/[Aa]ssets/Unity.VisualScripting.Generated/VisualScripting.Flow/UnitOptions.db.meta
-/[Aa]ssets/Unity.VisualScripting.Generated/VisualScripting.Core/Property Providers
-/[Aa]ssets/Unity.VisualScripting.Generated/VisualScripting.Core/Property Providers.meta
-
-# Auto-generated scenes by play mode tests
-/[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
-
-# Auto-generated cache in Assets folder
-/[Aa]ssets/[Ss]ceneDependencyCache*
+# OS files.
+.DS_Store
+Thumbs.db
