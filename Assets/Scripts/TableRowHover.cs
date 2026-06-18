@@ -23,6 +23,10 @@ public class TableRowHover : MonoBehaviour
     public string   imageTargetName = "Imagem";
     public Sprite[] rowSprites      = new Sprite[0];
 
+    [Header("Pulso de Borda")]
+    [Tooltip("BorderPulse do card alvo (geralmente o card que contém a imagem). Resolvido automaticamente se não atribuído.")]
+    public PaperCave.BorderPulse targetCardBorder;
+
     // estado interno
     private Vector3     _originLocal;
     private Vector3     _targetLocal;
@@ -135,6 +139,9 @@ void Start()
         {
             _targetImage.sprite = rowSprites[rowIndex];
         }
+
+        ResolveTargetCardBorder();
+        if (targetCardBorder != null) targetCardBorder.StartPulse();
     }
 
 private void ExitHover()
@@ -146,6 +153,17 @@ private void ExitHover()
             _cellImages[i].color = _origColors[i];
 
         // Sprite mantido intencionalmente - so troca quando outra linha for hovered
+
+        if (targetCardBorder != null) targetCardBorder.StopPulse();
+    }
+
+    private void ResolveTargetCardBorder()
+    {
+        if (targetCardBorder != null) return;
+        if (_targetImage == null) return;
+
+        // Sobe na hierarquia a partir da imagem alvo procurando um BorderPulse
+        targetCardBorder = _targetImage.GetComponentInParent<PaperCave.BorderPulse>();
     }
 
     private void CacheImages()

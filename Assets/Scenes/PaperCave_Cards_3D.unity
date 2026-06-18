@@ -186,6 +186,7 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
+  targetCardBorder: {fileID: 1109143978}
 --- !u!65 &6928362
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -642,6 +643,8 @@ GameObject:
   - component: {fileID: 46228473}
   - component: {fileID: 46228472}
   - component: {fileID: 46228476}
+  - component: {fileID: 46228477}
+  - component: {fileID: 46228478}
   m_Layer: 0
   m_Name: Card01_RAG_System
   m_TagString: Untagged
@@ -751,6 +754,60 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PaperCave.CardClickVFXBridge
   vfxManager: {fileID: 1106406985}
   effectIndex: 0
+--- !u!114 &46228477
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 46228471}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d2abf01831a5ed54e94641e3cb97e059, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PaperCave.CardOrientationAdapter
+  watchedImage: {fileID: 0}
+  portraitSize: {x: 1.6, y: 2.2}
+  landscapeSize: {x: 2.4, y: 1.5}
+  borderThickness: 0.05
+  transitionSpeed: 6
+  <CurrentOrientation>k__BackingField: 0
+  _lastSprite: {fileID: 0}
+  _currentSize: {x: 0, y: 0}
+  _targetSize: {x: 0, y: 0}
+  _face: {fileID: 0}
+  _bTop: {fileID: 0}
+  _bBottom: {fileID: 0}
+  _bLeft: {fileID: 0}
+  _bRight: {fileID: 0}
+  _canvasTf: {fileID: 0}
+  _canvasRT: {fileID: 0}
+--- !u!114 &46228478
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 46228471}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: abbc728292decf144b276031ad1dd0d1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PaperCave.CardContentFitter
+  badgeName: CategoryBadge
+  titleName: Title
+  figureName: Figure_Box
+  captionName: Caption
+  descriptionName: Description
+  baseWidth: 1.6
+  maxLandscapeWidth: 2.6
+  imageWidthFraction: 1
+  maxImageHeightFraction: 0.5
+  borderThickness: 0.05
+  landscapeFontScale: 0.85
+  transitionSpeed: 6
+  gap: 5
+  sideMargin: 6
 --- !u!1 &62253481
 GameObject:
   m_ObjectHideFlags: 0
@@ -2301,6 +2358,7 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
+  targetCardBorder: {fileID: 1109143978}
 --- !u!65 &183030160
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -3519,6 +3577,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PaperCave.CardFollower
   target: {fileID: 1109143975}
   localOffset: {x: 0.000000026542693, y: 0.18000007, z: -0.05}
+--- !u!114 &279153641
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 279153632}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ae61eb51780799b409f584d135c08d6e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PaperCave.ImageAspectFitter
+  areaWorldWidth: 1.14
+  areaWorldHeight: 0.52
 --- !u!1 &291337532
 GameObject:
   m_ObjectHideFlags: 0
@@ -3534,7 +3606,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &291337533
 RectTransform:
   m_ObjectHideFlags: 0
@@ -4520,6 +4592,7 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
+  targetCardBorder: {fileID: 1109143978}
 --- !u!65 &400056238
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -6445,6 +6518,7 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
+  targetCardBorder: {fileID: 1109143978}
 --- !u!65 &561132259
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -8257,11 +8331,11 @@ RectTransform:
   - {fileID: 2085883718}
   m_Father: {fileID: 1568393054}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: -50}
-  m_SizeDelta: {x: -24, y: 92}
-  m_Pivot: {x: 0.5, y: 1}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0.45, y: 1}
+  m_AnchoredPosition: {x: 0, y: -6}
+  m_SizeDelta: {x: -4, y: -16}
+  m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &808967771
 GameObject:
   m_ObjectHideFlags: 0
@@ -10136,6 +10210,7 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
+  targetCardBorder: {fileID: 1109143978}
 --- !u!65 &951824296
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -10223,7 +10298,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4280817162
   m_fontColor: {r: 0.039215688, g: 0.08627451, b: 0.15686275, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -10236,7 +10311,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -10264,13 +10339,13 @@ MonoBehaviour:
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
-  m_ActiveFontFeatures: 00000000
+  m_ActiveFontFeatures: 
   m_enableExtraPadding: 0
   checkPaddingRequired: 0
   m_isRichText: 1
   m_EmojiFallbackSupport: 1
   m_parseCtrlCharacters: 1
-  m_isOrthographic: 0
+  m_isOrthographic: 1
   m_isCullingEnabled: 0
   m_horizontalMapping: 0
   m_verticalMapping: 0
@@ -11478,6 +11553,7 @@ GameObject:
   - component: {fileID: 1109143972}
   - component: {fileID: 1109143976}
   - component: {fileID: 1109143977}
+  - component: {fileID: 1109143978}
   m_Layer: 0
   m_Name: Card05_Generated_Expressions
   m_TagString: Untagged
@@ -11599,6 +11675,21 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PaperCave.CardTableToggle
   tableObject: {fileID: 279153632}
+--- !u!114 &1109143978
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1109143971}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 96c83395a8772404ab37e7a7e889d534, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PaperCave.BorderPulse
+  pulseSpeed: 1
+  pulseColor: {r: 1, g: 0.75486547, b: 0.10196078, a: 1}
+  pulseIntensity: 2
 --- !u!1 &1119543330
 GameObject:
   m_ObjectHideFlags: 0
@@ -12006,6 +12097,7 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
+  targetCardBorder: {fileID: 1109143978}
 --- !u!65 &1158585424
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -14001,10 +14093,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1568393054}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMin: {x: 0.45, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: -24}
-  m_SizeDelta: {x: -16, y: 22}
+  m_AnchoredPosition: {x: 2, y: -20}
+  m_SizeDelta: {x: -6, y: 30}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &1376104912
 MonoBehaviour:
@@ -14048,12 +14140,12 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 11
+  m_fontSize: 6
   m_fontSizeBase: 11
   m_fontWeight: 400
   m_enableAutoSizing: 1
@@ -14076,13 +14168,13 @@ MonoBehaviour:
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
-  m_ActiveFontFeatures: 00000000
+  m_ActiveFontFeatures: 
   m_enableExtraPadding: 0
   checkPaddingRequired: 0
   m_isRichText: 1
   m_EmojiFallbackSupport: 1
   m_parseCtrlCharacters: 1
-  m_isOrthographic: 0
+  m_isOrthographic: 1
   m_isCullingEnabled: 0
   m_horizontalMapping: 0
   m_verticalMapping: 0
@@ -15048,11 +15140,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 460173908695225129, guid: 369a6bcbb957cc043b236e6862efb74a, type: 3}
       propertyPath: m_LocalScale.x
-      value: 0.038
+      value: 0.017213585
       objectReference: {fileID: 0}
     - target: {fileID: 460173908695225129, guid: 369a6bcbb957cc043b236e6862efb74a, type: 3}
       propertyPath: m_LocalScale.y
-      value: 0.017333332
+      value: 0.017213585
       objectReference: {fileID: 0}
     - target: {fileID: 460173908695225129, guid: 369a6bcbb957cc043b236e6862efb74a, type: 3}
       propertyPath: m_LocalPosition.x
@@ -15121,6 +15213,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 1896730653079871803, guid: 369a6bcbb957cc043b236e6862efb74a, type: 3}
       insertIndex: -1
       addedObject: {fileID: 279153637}
+    - targetCorrespondingSourceObject: {fileID: 1896730653079871803, guid: 369a6bcbb957cc043b236e6862efb74a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 279153641}
   m_SourcePrefab: {fileID: 100100000, guid: 369a6bcbb957cc043b236e6862efb74a, type: 3}
 --- !u!1 &1437546867
 GameObject:
@@ -17085,9 +17180,9 @@ RectTransform:
   - {fileID: 957116291}
   m_Father: {fileID: 1568393054}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 8, y: -6}
+  m_AnchorMin: {x: 0.45, y: 1}
+  m_AnchorMax: {x: 0.45, y: 1}
+  m_AnchoredPosition: {x: 4, y: -4}
   m_SizeDelta: {x: 82, y: 14}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &1702785475
@@ -18313,10 +18408,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1568393054}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: -174}
-  m_SizeDelta: {x: -24, y: 40}
+  m_AnchorMin: {x: 0.45, y: 1}
+  m_AnchorMax: {x: 1, y: 0}
+  m_AnchoredPosition: {x: 2, y: -90}
+  m_SizeDelta: {x: -6, y: 0}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &1820488318
 MonoBehaviour:
@@ -18362,13 +18457,13 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 9
-  m_fontSizeBase: 9
+  m_fontSize: 7.2000003
+  m_fontSizeBase: 7.2000003
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 0
@@ -18390,13 +18485,13 @@ MonoBehaviour:
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
-  m_ActiveFontFeatures: 00000000
+  m_ActiveFontFeatures: 
   m_enableExtraPadding: 0
   checkPaddingRequired: 0
   m_isRichText: 1
   m_EmojiFallbackSupport: 1
   m_parseCtrlCharacters: 1
-  m_isOrthographic: 0
+  m_isOrthographic: 1
   m_isCullingEnabled: 0
   m_horizontalMapping: 0
   m_verticalMapping: 0
@@ -19288,6 +19383,7 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
+  targetCardBorder: {fileID: 1109143978}
 --- !u!65 &1884621605
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -19631,6 +19727,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PaperCave.CardTableHoverSetup
   tableObject: {fileID: 105667526}
   targetImage: {fileID: 279153635}
+  targetCardBorder: {fileID: 1109143978}
 --- !u!1 &1929637556
 GameObject:
   m_ObjectHideFlags: 0
@@ -20255,10 +20352,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1568393054}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMin: {x: 0.45, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: -146}
-  m_SizeDelta: {x: -24, y: 26}
+  m_AnchoredPosition: {x: 2, y: -52}
+  m_SizeDelta: {x: -6, y: 36}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &1960044092
 MonoBehaviour:
@@ -20290,7 +20387,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 3003121663
   m_fontColor: {r: 1, g: 1, b: 1, a: 0.7}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -20303,13 +20400,13 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 8
-  m_fontSizeBase: 8
+  m_fontSize: 6.4
+  m_fontSizeBase: 6.4
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 0
@@ -20331,13 +20428,13 @@ MonoBehaviour:
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
-  m_ActiveFontFeatures: 00000000
+  m_ActiveFontFeatures: 
   m_enableExtraPadding: 0
   checkPaddingRequired: 0
   m_isRichText: 1
   m_EmojiFallbackSupport: 1
   m_parseCtrlCharacters: 1
-  m_isOrthographic: 0
+  m_isOrthographic: 1
   m_isCullingEnabled: 0
   m_horizontalMapping: 0
   m_verticalMapping: 0
@@ -21370,7 +21467,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: -168.20166}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2085883719
 MonoBehaviour:

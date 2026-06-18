@@ -13,9 +13,15 @@ namespace PaperCave
         [Tooltip("O Image que receberá o sprite ao hover (ImagemCard05)")]
         public Image targetImage;
 
+        [Tooltip("BorderPulse do card cujas bordas devem pulsar ao hover. Resolvido automaticamente a partir do targetImage se não atribuído.")]
+        public BorderPulse targetCardBorder;
+
         public void RunSetup()
         {
             if (tableObject == null) return;
+
+            if (targetCardBorder == null && targetImage != null)
+                targetCardBorder = targetImage.GetComponentInParent<BorderPulse>();
 
             var hovers      = tableObject.GetComponentsInChildren<TableRowHover>(true);
             var targetField = typeof(TableRowHover).GetField("_targetImage",
@@ -25,8 +31,9 @@ namespace PaperCave
             foreach (var h in hovers)
             {
                 // Injeta Image alvo e sprites
-                h.useImageSwap    = targetImage != null;
-                h.imageTargetName = "";
+                h.useImageSwap      = targetImage != null;
+                h.imageTargetName   = "";
+                h.targetCardBorder  = targetCardBorder;
                 targetField?.SetValue(h, targetImage);
 
                 var sprites = new Sprite[7];
