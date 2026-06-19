@@ -6,6 +6,13 @@
 # See: https://github.com/github/gitignore/tree/main/Global
 #
 .utmp/
+Library/
+Temp/
+obj/
+.vs/
+*.csproj
+*.sln
+*.userprefs
 /[Ll]ibrary/
 /[Tt]emp/
 /[Oo]bj/
