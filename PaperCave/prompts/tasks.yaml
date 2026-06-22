@@ -1,0 +1,164 @@
+read:
+  description: >
+    Use the pdf_reader tool to read the file at '{pdf_path}'.
+    Return the extracted text EXACTLY as the tool produced it —
+    preserving all structural tags such as [SEGMENT N] or [FULL PAPER].
+    Do not modify, summarize, or remove any markers.
+  expected_output: >
+    Full text of the scientific paper extracted from the PDF, including
+    all sections (abstract, introduction, methodology, results, evaluation,
+    conclusion, references) and all demarcation tags produced by the tool.
+
+summarize:
+  description: >
+    Receive the full paper text extracted by the previous agent.
+    Produce a structured summary using the 6 required blocks:
+    CENTRAL CONTRIBUTION, PROBLEM AND CONTEXT, METHOD/SYSTEM,
+    RESULTS AND METRICS, LIMITATIONS, KEY CONCEPTS.
+
+    Scale the summary based on the paper's technical density
+    (800-1200 words for dense methodological papers,
+    400-600 for conceptual papers or surveys).
+    Preserve all specific technical terms and quantitative data.
+  expected_output: >
+    Structured summary in 6 blocks, scaled to the paper's technical density,
+    preserving technical terms, algorithms, tools, hardware, and numerical metrics.
+
+analyze_images:
+  description: >
+    Receive the paper figures (already extracted as FIG_*.png files) with
+    their captions from the paper. For each figure, produce a description of
+    what it shows and how it relates to the paper's central contribution.
+    If you have visual access to the image file, use mode="visual".
+    If inferring from caption and context only, use mode="text_inferred".
+    Return ONLY valid JSON following the ImageInsights schema.
+  expected_output: >
+    Valid JSON with insights for each figure:
+    filename (e.g. "FIG1.png"), description (1-2 sentences),
+    relevance (how it relates to the paper's contribution), and mode.
+
+extract:
+  description: >
+    Based on the paper summary provided by the previous agent,
+    extract between 8 and 10 relevant conceptual elements following
+    exactly the ExtractionResult schema.
+    If the summary includes a VISUAL INSIGHTS block, factor it into
+    the analysis. Also note which elements naturally group together
+    (same section, compared conditions, logical sequence) — mark them
+    with groupingHint pointing to the other element's name.
+    Order elements from most to least relevant.
+    Return ONLY valid JSON, no additional text, no markdown.
+  expected_output: >
+    Valid JSON with paperTitle, centralContribution, and a list of 8-10 elements,
+    each with name, category, description, relevanceScore, justification,
+    and groupingHint (the name of a related element, or null).
+
+map:
+  description: >
+    Based on the extracted elements provided by the previous agent,
+    produce a Unit Manifest with exactly {card_count} draggable units
+    following the UnitManifest schema.
+
+    A DRAGGABLE UNIT is either:
+      - A single CARD (type="card") with one content item.
+      - A STACK (type="stack") with 2-4 card items grouped as one draggable piece.
+
+    unitCount counts draggable units (cards + stacks combined), not individual items.
+
+    Unit count required: {card_count}
+
+    {available_figures}
+
+    {asset_catalog_section}
+
+    {visual_style_section}
+
+    WHEN TO USE A STACK:
+    Group items into a stack when they:
+    - Come from the same section or table in the paper
+    - Are naturally compared (two evaluation conditions, two modules)
+    - Form a logical sequence worth browsing together
+    - Would each be too thin to stand alone as individual units
+    Use the groupingHint from the Extractor to guide stack decisions.
+
+    WHEN TO USE A SINGLE CARD:
+    - The primary contribution (ALWAYS a single card, NEVER a stack)
+    - Any concept that stands clearly on its own
+    - Items likely to be placed separately in the experience
+
+    CONTENT TYPES (per card or stack item):
+      figure     — real paper figure. content.assetReference = "FIG1", "FIG2", etc.
+                   Only use when a FIG*.png actually exists in the paper folder.
+      chart      — quantitative data with bars/grouped bars.
+                   Include EXACT paper values in content.data.
+      table      — tabular data. Include EXACT paper values in content.data.
+      animation  — sequential process. 2-4 frames with label (max 20 chars)
+                   and description (max 120 chars).
+      text_panel — for purely textual concepts with no visual representation.
+
+    CRITICAL FIELD CONSTRAINTS:
+    - title (cards) / stackLabel (stacks): maximum 30 characters
+    - summary (single cards only): maximum 80 characters, one complete sentence
+    - animation frame label: maximum 20 characters
+    - animation frame description: maximum 120 characters
+    - stack items: 2 to 4 items per stack
+
+    SELECTION RULES:
+    1. Exactly 1 unit must have priority="primary" — always a single card (type="card"),
+       always the paper's central contribution, always id="unit_01"
+    2. All other units have priority="secondary"
+    3. At least 1 unit/item must use contentType="figure" if paper figures exist
+    4. At least 1 unit/item must use contentType="chart" or "table" if
+       quantitative data exists — with real values in content.data
+    5. Variety of contentType across units
+
+    Return ONLY valid JSON following the UnitManifest schema.
+    No additional text, no markdown.
+  expected_output: >
+    Valid JSON with paperTitle, centralContribution, unitCount={card_count},
+    and exactly {card_count} units. Each card unit must have: id (unit_01...),
+    type, priority, title (<=30 chars), category, summary (<=80 chars),
+    contentType, content, conceptualOrigin, whyThisUnit, and styleHint.
+    Each stack unit must have: id, type="stack", priority="secondary",
+    stackLabel (<=30 chars), category, whyThisUnit, styleHint, and items (2-4).
+
+map_simple:
+  description: >
+    Based on the extracted elements provided by the previous agent,
+    produce a Unit Manifest in SIMPLE MODE with exactly {card_count} single
+    cards (no stacks). contentType must be "figure", "chart", or "table" only
+    (no animation or text_panel).
+
+    Unit count required: {card_count}
+
+    SIMPLE MODE RULES:
+    - All units must be type="card" (no stacks)
+    - contentType must be "figure", "chart", or "table" only
+    - For figure cards: use assetReference if available; never use figure without FIG*.png
+    - For chart/table cards: always include real paper values in content.data
+    - title: maximum 30 characters
+    - summary: maximum 80 characters
+
+    Return ONLY valid JSON following the UnitManifest schema.
+  expected_output: >
+    Valid JSON following the UnitManifest schema with exactly {card_count}
+    single card units (type="card") using only contentType="figure",
+    "chart", or "table".
+
+review:
+  description: >
+    Evaluate the Unit Manifest provided by the previous agent.
+    Assign a score (0.0 to 1.0) for each unit based on its grounding
+    in the actual paper content. Keep the scores in the SAME ORDER as the
+    units appear in the manifest, using each unit's title or stackLabel
+    (or id) as suggestedName.
+    If 2 or more units have score < 0.6, set approved=false and provide
+    specific per-unit feedback to guide the retry.
+    For stack units, evaluate whether the grouping is justified and whether
+    each item's contentType fits the data.
+    Previous attempt history: {attempt_history}
+    Current attempt: {current_attempt}
+    Return ONLY valid JSON following the ReviewResult schema.
+  expected_output: >
+    Valid JSON with attempt, approved, objectScores (score, confidence, feedback
+    for each unit), and overallFeedback.

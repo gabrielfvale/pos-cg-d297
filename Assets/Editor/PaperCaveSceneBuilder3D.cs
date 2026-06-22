@@ -215,6 +215,234 @@ public static class PaperCaveSceneBuilder3D
     }
 
     // =====================================================================
+    //  GENERIC BUILDER — driven by UnitManifest data from the Python pipeline
+    // =====================================================================
+
+    /// <summary>
+    /// Builds a single card in the scene from a PaperUnitData entry loaded from
+    /// manifest.json. Called by PaperCaveManifestLoader after parsing the JSON.
+    /// Dispatches to sub-builders based on contentType.
+    /// </summary>
+    public static void BuildCardFromData(
+        PaperUnitData data, string paperId,
+        Vector3 pos, float yRot, float w, float h)
+    {
+        Color catColor = ParseColor(data.styleHint?.categoryColor ?? "#FFFFFF");
+        string category = data.category ?? "result";
+        string title   = data.title ?? "";
+        string summary = data.summary ?? "";
+
+        var c = CreateCard(
+            data.id ?? "unit",
+            w, h, pos, yRot,
+            category, catColor, title, summary
+        );
+
+        switch (data.contentType)
+        {
+            case "figure":
+                BuildExpandedFigure(c, data, paperId, catColor);
+                break;
+            case "chart":
+                BuildExpandedChart(c, data, catColor);
+                break;
+            case "table":
+                BuildExpandedTable(c, data, catColor);
+                break;
+            case "animation":
+                BuildExpandedAnimation(c, data, catColor);
+                break;
+            case "text_panel":
+            default:
+                BuildExpandedTextPanel(c, data, catColor);
+                break;
+        }
+
+        // Golden highlight for the primary card.
+        if (data.priority == "primary")
+        {
+            var lightGO = new GameObject("PrimaryHighlight", typeof(Light));
+            lightGO.transform.SetParent(c.root.transform, false);
+            lightGO.transform.localPosition = new Vector3(0f, 0f, -0.4f);
+            var l = lightGO.GetComponent<Light>();
+            l.type      = LightType.Point;
+            l.color     = catColor;
+            l.intensity = 0.8f;
+            l.range     = 2.0f;
+        }
+    }
+
+    static void BuildExpandedFigure(CardParts c, PaperUnitData data, string paperId, Color catColor)
+    {
+        var e = c.expanded;
+        BuildExpandedHeader(e, data.category, catColor, data.title);
+
+        // Load image from PaperCaveData/{paper_id}/images/
+        string assetRef = data.content?.assetReference ?? "";
+        Texture tex = LoadTexFromPaperData(assetRef, paperId);
+        AddFigure(e, "Figure", tex, 46f, 52f, 8f, 8f);
+
+        if (!string.IsNullOrEmpty(data.content?.caption))
+        {
+            var cap = AddTMP(e, "Caption", Truncate(data.content.caption, 120),
+                8f, Alpha(White, 0.7f), false, true, TextAlignmentOptions.TopLeft, true);
+            Band(cap.rectTransform, 100f, 30f, 8f, 8f);
+        }
+
+        string desc = data.content?.description ?? "";
+        if (!string.IsNullOrEmpty(desc))
+        {
+            var dt = AddTMP(e, "Description", desc, 9f, White, false, false,
+                TextAlignmentOptions.TopLeft, true);
+            dt.maxVisibleLines = 4;
+            Band(dt.rectTransform, 132f, 44f, 8f, 8f);
+        }
+    }
+
+    static void BuildExpandedChart(CardParts c, PaperUnitData data, Color catColor)
+    {
+        var e = c.expanded;
+        BuildExpandedHeader(e, data.category, catColor, data.title);
+
+        string chartTitle = data.content?.title ?? data.title;
+        if (!string.IsNullOrEmpty(chartTitle))
+        {
+            var ct = AddTMP(e, "ChartTitle", chartTitle, 8f, White, true, false,
+                TextAlignmentOptions.Top, true);
+            Band(ct.rectTransform, 42f, 18f, 8f, 8f);
+        }
+
+        // Render description as fallback — full chart data rendering needs
+        // the full data object which requires further runtime implementation.
+        string desc = data.content?.description ?? "";
+        if (!string.IsNullOrEmpty(desc))
+        {
+            var dt = AddTMP(e, "Description", desc, 9f, White, false, false,
+                TextAlignmentOptions.TopLeft, true);
+            dt.maxVisibleLines = 6;
+            Band(dt.rectTransform, 62f, 100f, 10f, 10f);
+        }
+    }
+
+    static void BuildExpandedTable(CardParts c, PaperUnitData data, Color catColor)
+    {
+        var e = c.expanded;
+        BuildExpandedHeader(e, data.category, catColor, data.title);
+
+        string tableTitle = data.content?.title ?? data.title;
+        if (!string.IsNullOrEmpty(tableTitle))
+        {
+            var tt = AddTMP(e, "TableTitle", tableTitle, 8f, White, true, false,
+                TextAlignmentOptions.Top, true);
+            Band(tt.rectTransform, 42f, 16f, 8f, 8f);
+        }
+
+        string desc = data.content?.description ?? "";
+        if (!string.IsNullOrEmpty(desc))
+        {
+            var dt = AddTMP(e, "Description", desc, 9f, White, false, false,
+                TextAlignmentOptions.TopLeft, true);
+            dt.maxVisibleLines = 6;
+            Band(dt.rectTransform, 60f, 110f, 10f, 10f);
+        }
+    }
+
+    static void BuildExpandedAnimation(CardParts c, PaperUnitData data, Color catColor)
+    {
+        var e = c.expanded;
+        BuildExpandedHeader(e, data.category, catColor, data.title);
+
+        var frames = data.content?.frames;
+        if (frames == null || frames.Count == 0)
+        {
+            string desc = data.content?.description ?? "";
+            var dt = AddTMP(e, "Description", desc, 9f, White, false, false,
+                TextAlignmentOptions.TopLeft, true);
+            dt.maxVisibleLines = 6;
+            Band(dt.rectTransform, 44f, 110f, 10f, 10f);
+            return;
+        }
+
+        var label = AddTMP(e, "FrameLabel", frames[0].label, 10f, White, true, false,
+            TextAlignmentOptions.Center, true);
+        Band(label.rectTransform, 44f, 16f, 6f, 6f);
+
+        var content = new UnityEngine.GameObject("Content", typeof(UnityEngine.RectTransform));
+        content.transform.SetParent(e, false);
+        Band(content.GetComponent<UnityEngine.RectTransform>(), 62f, 68f, 8f, 8f);
+        var contentGroup = content.AddComponent<CanvasGroup>();
+
+        var frameDesc = AddTMP(content.transform, "FrameDescription", frames[0].description,
+            9f, White, false, false, TextAlignmentOptions.Top, true);
+        Stretch(frameDesc.rectTransform);
+
+        var counter = AddTMP(e, "Counter", $"1 / {frames.Count}", 7f, Alpha(White, 0.6f),
+            false, false, TextAlignmentOptions.Center, false);
+        Band(counter.rectTransform, 134f, 14f, 6f, 6f);
+
+        var view = c.expanded.gameObject.AddComponent<AnimationFrameView3D>();
+        view.labelText      = label;
+        view.descriptionText = frameDesc;
+        view.counterText    = counter;
+        view.contentGroup   = contentGroup;
+        view.contentRect    = content.GetComponent<UnityEngine.RectTransform>();
+        view.transition     = (data.content?.transitionType == "slide")
+            ? AnimationFrameView3D.Transition.Slide
+            : AnimationFrameView3D.Transition.Fade;
+        view.looping = data.content?.looping ?? false;
+
+        var builtFrames = new AnimationFrameView3D.Frame[frames.Count];
+        for (int i = 0; i < frames.Count; i++)
+            builtFrames[i] = new AnimationFrameView3D.Frame
+            {
+                label       = frames[i].label,
+                description = frames[i].description,
+            };
+        view.frames = builtFrames;
+
+        var buttons = new UnityEngine.GameObject("AnimButtons");
+        buttons.transform.SetParent(c.root.transform, false);
+        buttons.SetActive(false);
+        c.card.expandedExtra = buttons;
+
+        MakeAnimButton(buttons.transform, "PrevButton", "‹ PREV", catColor, view, -1,
+            new Vector3(-0.33f, -0.74f, -0.03f));
+        MakeAnimButton(buttons.transform, "NextButton", "NEXT ›", catColor, view, +1,
+            new Vector3( 0.33f, -0.74f, -0.03f));
+    }
+
+    static void BuildExpandedTextPanel(CardParts c, PaperUnitData data, Color catColor)
+    {
+        var e = c.expanded;
+        BuildExpandedHeader(e, data.category, catColor, data.title);
+
+        string desc = data.content?.description ?? data.summary ?? "";
+        var dt = AddTMP(e, "Description", desc, 9f, White, false, false,
+            TextAlignmentOptions.TopLeft, true);
+        dt.maxVisibleLines = 8;
+        Band(dt.rectTransform, 44f, 120f, 10f, 10f);
+    }
+
+    // ── Texture loader for PaperCaveData ─────────────────────────────────────
+
+    static Texture2D LoadTexFromPaperData(string assetRef, string paperId)
+    {
+        if (string.IsNullOrEmpty(assetRef)) return null;
+        string normalised = assetRef.Replace("FIG", "FIG_").Replace("FIG__", "FIG_");
+        string path = $"Assets/PaperCaveData/{paperId}/images/{normalised}.png";
+        var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        if (tex == null)
+            Debug.LogWarning($"PaperCave: could not load texture at {path}");
+        return tex;
+    }
+
+    static Color ParseColor(string hex)
+    {
+        if (ColorUtility.TryParseHtmlString(hex, out Color c)) return c;
+        return Color.white;
+    }
+
+    // =====================================================================
     //  CARD 01 - figure (FIG1) - primary, golden amber
     // =====================================================================
     static void BuildCard01(Vector3 pos, float yRot)

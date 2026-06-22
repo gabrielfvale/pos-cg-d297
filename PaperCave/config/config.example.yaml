@@ -1,0 +1,56 @@
+# Paper Cave — Configuração de Provider e Modelo
+# Copie este arquivo para config/config.yaml e preencha os valores.
+# Apenas config.yaml é lido pelo sistema. config.example.yaml é só referência.
+
+# ── Provider e modelo ──────────────────────────────────────────────────────
+# Exemplos válidos de provider/model:
+
+# Google Gemini (recomendado para a PoC):
+provider: google
+model: gemini-2.5-flash
+
+# OpenAI:
+# provider: openai
+# model: gpt-4o-mini
+
+# Anthropic Claude:
+# provider: anthropic
+# model: claude-sonnet-4-5
+
+# LMStudio (modelo local):
+# provider: lmstudio
+# model: openai/nome-exato-do-modelo-carregado
+# base_url: http://localhost:1234/v1
+
+# Ollama (modelo local via Ollama):
+# provider: ollama
+# model: ollama/llama3.2
+# base_url: http://localhost:11434
+
+# Qualquer endpoint OpenAI-compatible:
+# provider: openai_compatible
+# model: openai/nome-do-modelo
+# base_url: https://seu-endpoint/v1
+
+# ── Chaves de API ──────────────────────────────────────────────────────────
+# Prefira definir chaves no .env (GEMINI_API_KEY, OPENAI_API_KEY, etc.)
+# Use api_key aqui apenas se não quiser usar variáveis de ambiente.
+# api_key: sua_chave_aqui  # descomente se necessário
+
+# ── Comportamento do sistema ───────────────────────────────────────────────
+# Tamanho máximo de chunk em caracteres quando o paper excede a janela de contexto.
+# Reduzir para modelos com janela menor. Padrão: 60000 (aprox. 15k tokens).
+chunk_size: 60000
+
+# Se true, o sistema pergunta confirmação antes de processar papers grandes.
+# Se false, processa automaticamente aplicando chunking quando necessário.
+confirm_large_papers: true
+
+# Número máximo de tentativas quando o modelo não produz JSON válido.
+max_schema_retries: 3
+
+# ── Card system ────────────────────────────────────────────────────────────────
+# Number of cards to generate per paper. Default: 5.
+# The Mapper will select the N most relevant conceptual elements
+# and produce exactly this many cards.
+card_count: 5
