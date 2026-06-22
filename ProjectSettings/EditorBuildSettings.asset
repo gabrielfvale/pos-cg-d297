@@ -11,5 +11,8 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/PaperSelectorScene.unity
     guid: 8909719dbf380c99d98984968a052006
+  - enabled: 1
+    path: Assets/Scenes/MoemaPodcast.unity
+    guid: 7f189b9ec4ecfdc7ab60174602784d77
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 289c1b55c9541489481df5cc06664110, type: 3}
