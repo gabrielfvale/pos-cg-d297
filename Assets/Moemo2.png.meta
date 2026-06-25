@@ -127,9 +127,9 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 152
-        y: 833
+        y: 819
         width: 244
-        height: 575
+        height: 589
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -149,9 +149,9 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 427
-        y: 833
+        y: 821
         width: 244
-        height: 574
+        height: 586
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -170,10 +170,10 @@ TextureImporter:
       name: Moemo2_2
       rect:
         serializedVersion: 2
-        x: 715
-        y: 832
+        x: 743
+        y: 823
         width: 244
-        height: 573
+        height: 582
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}

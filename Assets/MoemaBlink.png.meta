@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: a9cb42db7b2ba564399357d50583b572
+guid: 3c0a9d801070b5a4bbf33588dbf7a7d9
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -123,101 +123,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Moema_0
+      name: MoemaBlink_0
       rect:
         serializedVersion: 2
-        x: 161
-        y: 781
-        width: 276
-        height: 701
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 8b370b3de8d4153409efa8b7aa8e1a27
-      internalID: -340818340
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: Moema_1
-      rect:
-        serializedVersion: 2
-        x: 569
-        y: 782
-        width: 440
-        height: 700
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 1, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 25e34d3a0609fd3499f9a0ad094f0474
-      internalID: -637768305
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: Moema_2
-      rect:
-        serializedVersion: 2
-        x: 181
-        y: 50
-        width: 254
-        height: 667
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 82dcb180c6617df4fad88952278782e0
-      internalID: 1813498509
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: Moema_3
-      rect:
-        serializedVersion: 2
-        x: 571
-        y: 50
-        width: 438
-        height: 670
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 7a4496fa762bdcd4a83ec7e7ba3d5aba
-      internalID: 1173503877
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: Moema_4
-      rect:
-        serializedVersion: 2
-        x: 164
-        y: 1268
-        width: 273
-        height: 213
+        x: 153
+        y: 472
+        width: 262
+        height: 754
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -226,8 +138,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 05de5fad2770e5a469bd8d3e53c7af8f
-      internalID: -1061063351
+      spriteID: 7288ae7a261628c4fb85fbf428d58d44
+      internalID: -1570574928
       vertices: []
       indices: 
       edges: []
@@ -236,7 +148,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: bdaa61840ddb6ff4ca9b945e418eaaa2
+    spriteID: 6a8a81e0389ef074c9174eccc1cac36f
     internalID: 0
     vertices: []
     indices: 
@@ -244,15 +156,9 @@ TextureImporter:
     weights: []
     secondaryTextures: []
     spriteCustomMetadata:
-      entries:
-      - key: SpriteEditor.SliceSettings
-        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":64.0,"y":64.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":0,"keepEmptyRects":false,"isAlternate":false}'
+      entries: []
     nameFileIdTable:
-      Moema_0: -340818340
-      Moema_1: -637768305
-      Moema_2: 1813498509
-      Moema_3: 1173503877
-      Moema_4: -1061063351
+      MoemaBlink_0: -1570574928
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

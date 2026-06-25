@@ -210,6 +210,28 @@ TextureImporter:
       indices: 
       edges: []
       weights: []
+    - serializedVersion: 2
+      name: Moemo_4
+      rect:
+        serializedVersion: 2
+        x: 206
+        y: 1284
+        width: 246
+        height: 166
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ec19ee4823faf354685dc22aaaef27e7
+      internalID: -1045023008
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
     outline: []
     customData: 
     physicsShape: []
@@ -230,6 +252,7 @@ TextureImporter:
       Moemo_1: -243467028
       Moemo_2: -201865517
       Moemo_3: 1732373753
+      Moemo_4: -1045023008
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

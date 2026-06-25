@@ -2,12 +2,6 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// Flipbook animator para o personagem pássaro.
-/// - Arrays de frames configuráveis no Inspector (quantos quiser)
-/// - Transição suave com cross-fade via segunda SpriteRenderer
-/// - Animações especiais separadas para Idle e Talk
-/// </summary>
 [RequireComponent(typeof(SpriteRenderer))]
 public class BirdAnimator : MonoBehaviour
 {
@@ -17,18 +11,17 @@ public class BirdAnimator : MonoBehaviour
     public class BonusAnimation
     {
         public string name = "Bonus";
-        [Tooltip("Frames dessa animação especial")]
         public Sprite[] frames;
-        [Tooltip("Chance (0–1) de disparar a cada ciclo")]
-        [Range(0f, 1f)]
-        public float chance = 0.1f;
-        [Tooltip("FPS desta animação especial")]
+        [Range(0f, 1f)] public float chance = 0.1f;
         public float fps = 8f;
-        [Tooltip("Quantas vezes repete antes de voltar ao estado base")]
         public int repeatCount = 1;
     }
 
     // ─── Inspector ────────────────────────────────────────────────────────────
+
+    [Header("Cabeça")]
+    [Tooltip("GameObject da cabeça — desativado durante Talk e animações especiais")]
+    public GameObject headObject;
 
     [Header("Frames – Idle")]
     public Sprite[] idleFrames;
@@ -39,7 +32,6 @@ public class BirdAnimator : MonoBehaviour
     public float talkFPS = 8f;
 
     [Header("Transição")]
-    [Tooltip("Duração do cross-fade entre estados (segundos)")]
     public float transitionDuration = 0.12f;
 
     [Header("Animações Especiais – Idle")]
@@ -57,6 +49,7 @@ public class BirdAnimator : MonoBehaviour
     private SpriteRenderer _sr;
     private SpriteRenderer _srFade;
     private Coroutine      _currentAnim;
+    private Coroutine      _forcedBonus;
 
     private enum AnimState { None, Idle, Talk }
     private AnimState _state = AnimState.None;
@@ -75,11 +68,7 @@ public class BirdAnimator : MonoBehaviour
         _srFade.color          = new Color(1, 1, 1, 0);
     }
 
-    void Start()
-    {
-        // Comente/descomente conforme preferir
-        // Talk();
-    }
+    void Start() => SetHead(true);
 
     // ─── API pública ──────────────────────────────────────────────────────────
 
@@ -105,6 +94,27 @@ public class BirdAnimator : MonoBehaviour
             _sr.sprite = idleFrames[0];
         debugCurrentAnim  = "Stopped";
         debugCurrentFrame = 0;
+        SetHead(true);
+    }
+
+    /// <summary>
+    /// Força uma animação especial pelo nome imediatamente,
+    /// interrompendo o loop atual e retomando após terminar.
+    /// </summary>
+    public void ForceBonusAnimation(string bonusName)
+    {
+        // Busca nas duas listas
+        BonusAnimation found = FindBonus(bonusName, talkBonusAnimations)
+                            ?? FindBonus(bonusName, idleBonusAnimations);
+
+        if (found == null)
+        {
+            Debug.LogWarning($"[BirdAnimator] BonusAnimation '{bonusName}' não encontrada.");
+            return;
+        }
+
+        if (_forcedBonus != null) StopCoroutine(_forcedBonus);
+        _forcedBonus = StartCoroutine(ForcedBonusRoutine(found));
     }
 
     // ─── Loops principais ─────────────────────────────────────────────────────
@@ -114,6 +124,7 @@ public class BirdAnimator : MonoBehaviour
         if (idleFrames == null || idleFrames.Length == 0) yield break;
 
         debugCurrentAnim = "Idle";
+        SetHead(true);
         yield return CrossFadeTo(idleFrames[0]);
 
         float delay = 1f / Mathf.Max(idleFPS, 0.1f);
@@ -126,7 +137,9 @@ public class BirdAnimator : MonoBehaviour
                 BonusAnimation bonus = PickBonus(idleBonusAnimations);
                 if (bonus != null)
                 {
+                    SetHead(false);
                     yield return PlayBonus(bonus);
+                    SetHead(true);
                     debugCurrentAnim = "Idle";
                     yield return CrossFadeTo(idleFrames[0]);
                     i = 0;
@@ -145,6 +158,7 @@ public class BirdAnimator : MonoBehaviour
         if (talkFrames == null || talkFrames.Length == 0) yield break;
 
         debugCurrentAnim = "Talk";
+        SetHead(false);
         yield return CrossFadeTo(talkFrames[0]);
 
         float delay = 1f / Mathf.Max(talkFPS, 0.1f);
@@ -188,6 +202,32 @@ public class BirdAnimator : MonoBehaviour
             }
     }
 
+    /// <summary>
+    /// Pausa o loop atual, toca a bonus forçada, depois retoma o estado anterior.
+    /// </summary>
+    private IEnumerator ForcedBonusRoutine(BonusAnimation bonus)
+    {
+        // Salva estado atual para retomar depois
+        AnimState prevState = _state;
+
+        // Pausa o loop principal sem mudar _state
+        if (_currentAnim != null)
+        {
+            StopCoroutine(_currentAnim);
+            _currentAnim = null;
+        }
+
+        SetHead(false);
+        yield return PlayBonus(bonus);
+
+        // Retoma estado anterior
+        _state = AnimState.None; // força re-entrada
+        if (prevState == AnimState.Talk) Talk();
+        else                             Idle();
+
+        _forcedBonus = null;
+    }
+
     // ─── Cross-fade ───────────────────────────────────────────────────────────
 
     private IEnumerator CrossFadeTo(Sprite nextSprite)
@@ -219,11 +259,25 @@ public class BirdAnimator : MonoBehaviour
 
     // ─── Utilitários ──────────────────────────────────────────────────────────
 
+    private void SetHead(bool active)
+    {
+        if (headObject != null) headObject.SetActive(active);
+    }
+
     private void SetFrame(Sprite[] frames, int index)
     {
         if (frames[index] == null) return;
         _sr.sprite        = frames[index];
         debugCurrentFrame = index;
+    }
+
+    private BonusAnimation FindBonus(string bonusName, List<BonusAnimation> list)
+    {
+        if (list == null) return null;
+        foreach (var b in list)
+            if (string.Equals(b.name, bonusName, System.StringComparison.OrdinalIgnoreCase))
+                return b;
+        return null;
     }
 
     private BonusAnimation PickBonus(List<BonusAnimation> list)
