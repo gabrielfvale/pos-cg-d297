@@ -113,7 +113,7 @@ public class PaperManifestData
 public class PaperUnitData
 {
     public string id;
-    public string type;             // "card" (stacks already flattened by unity_export.py)
+    public string type;             // "card" | "stack"
     public string priority;         // "primary" | "secondary"
     public string title;
     public string category;
@@ -123,6 +123,8 @@ public class PaperUnitData
     public string conceptualOrigin;
     public string whyThisUnit;
     public PaperStyleHint styleHint;
+    public string stackLabel;
+    public List<StackItemData> items;
 }
 
 [Serializable]
@@ -134,16 +136,16 @@ public class PaperCardContent
     public string chartType;
     public string title;
     public object data;             // chart/table data — used as raw JSON object
-    public int frameCount;
+    public int? frameCount;         // nullable: most cards don't have animation frames
     public List<PaperAnimFrame> frames;
     public string transitionType;
-    public bool looping;
+    public bool? looping;           // nullable: only meaningful for animation contentType
 }
 
 [Serializable]
 public class PaperAnimFrame
 {
-    public int index;
+    public int? index;              // nullable for safety
     public string label;
     public string description;
     public string assetReference;
@@ -154,4 +156,13 @@ public class PaperStyleHint
 {
     public string categoryColor;
     public string colorName;
+}
+
+[Serializable]
+public class StackItemData
+{
+    public int?   index;
+    public string title;
+    public string contentType;
+    public PaperCardContent content;
 }

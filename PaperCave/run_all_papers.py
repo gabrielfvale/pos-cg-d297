@@ -1,24 +1,17 @@
 """
 run_all_papers.py
 Batch runner — processa todos os papers da pasta papers/ em sequência.
+Use main.py como ponto de entrada principal; este módulo contém a lógica de batch.
 
 Fluxo:
   FASE 1 (todos os papers, sem IA):
     - PDFs soltos na raiz de papers/ ganham subpasta própria
-    - Figuras extraídas de cada PDF como FIG_1.png, FIG_2.png, ...
+    - Figuras extraídas de cada PDF (via utils/image_extractor)
 
   FASE 2 (um paper por vez):
     - Pipeline CrewAI completo
     - Unity export imediato após cada paper
     - Pressione ESC a qualquer momento para parar antes do próximo paper
-
-Usage:
-  python run_all_papers.py                          # processa todos os papers
-  python run_all_papers.py --simple                 # Simple Mode (sem stacks/animation)
-  python run_all_papers.py --from-step mapper       # retoma todos a partir do Mapper
-  python run_all_papers.py --skip-figures           # pula extração de figuras (Fase 1)
-  python run_all_papers.py --skip-export            # pula unity_export após cada paper
-  python run_all_papers.py --paper "Meu Paper"      # processa só um paper específico
 """
 import argparse
 import shutil
@@ -29,14 +22,12 @@ from pathlib import Path
 from datetime import datetime
 
 from utils.slug import slugify
+from utils.image_extractor import extract_figures_from_pdf
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 
 PAPERS_DIR  = Path(__file__).parent / "papers"
 OUTPUTS_DIR = Path(__file__).parent / "outputs"
-
-MIN_FIG_W = 100
-MIN_FIG_H = 100
 
 # ── ESC key cancellation ──────────────────────────────────────────────────────
 
@@ -65,56 +56,12 @@ def _start_keyboard_monitor() -> None:
     t = threading.Thread(target=_keyboard_monitor, daemon=True)
     t.start()
 
-# ── Figure extraction ──────────────────────────────────────────────────────────
 
-def extract_figures(paper_folder: Path, pdf_path: Path, verbose: bool = True) -> int:
-    """
-    Extrai figuras do PDF como FIG_1.png, FIG_2.png, ... em paper_folder.
-    Pula arquivos que já existem. Retorna o número de figuras novas escritas.
-    """
-    try:
-        import fitz
-    except ImportError:
-        print("  [extract] pymupdf não instalado — rode: pip install pymupdf")
-        return 0
+def _extract_figures_wrapper(paper_folder: Path, pdf_path: Path, verbose: bool = True) -> int:
+    """Delegates to utils/image_extractor (single source of truth)."""
+    captions = extract_figures_from_pdf(paper_folder, pdf_path, verbose=verbose)
+    return len(captions)
 
-    doc = fitz.open(str(pdf_path))
-    index = 1
-    written = 0
-    seen_xrefs: set[int] = set()
-
-    for page_num, page in enumerate(doc, 1):
-        for img_ref in page.get_images(full=True):
-            xref = img_ref[0]
-            if xref in seen_xrefs:
-                continue
-            seen_xrefs.add(xref)
-
-            try:
-                base_image = doc.extract_image(xref)
-            except Exception:
-                continue
-
-            w, h = base_image["width"], base_image["height"]
-            if w < MIN_FIG_W or h < MIN_FIG_H:
-                continue
-
-            dest = paper_folder / f"FIG_{index}.png"
-            if not dest.exists():
-                dest.write_bytes(base_image["image"])
-                if verbose:
-                    print(f"    FIG_{index}.png  ({w}×{h}px, página {page_num})")
-                written += 1
-            else:
-                if verbose:
-                    print(f"    FIG_{index}.png  já existe — ignorado")
-            index += 1
-
-    doc.close()
-    total = index - 1
-    if verbose:
-        print(f"    Pronto: {written} nova(s), {total - written} já existia(m) ({total} total)")
-    return written
 
 # ── Paper discovery ────────────────────────────────────────────────────────────
 
@@ -229,7 +176,7 @@ def run_all(
         for i, (paper_folder, pdf_path) in enumerate(papers, 1):
             print(f"  [{i}/{total}] {paper_folder.name}")
             try:
-                n = extract_figures(paper_folder, pdf_path, verbose=True)
+                n = _extract_figures_wrapper(paper_folder, pdf_path, verbose=True)
                 fig_results[paper_folder] = f"ok ({n} nova(s))"
             except Exception as e:
                 fig_results[paper_folder] = f"ERRO: {e}"

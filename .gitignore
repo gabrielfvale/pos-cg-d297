@@ -87,12 +87,15 @@ InitTestScene*.unity*
 # PDFs de entrada (pesados — distribuir fora do git)
 PaperCave/papers/*.pdf
 
+# Pasta de duplicatas aguardando confirmação manual
+PaperCave/papers/papers_duplicados/
+
 # Imagens extraídas dentro das subpastas de papers (FIG_*.png etc.)
 # Ficam em Assets/PaperCaveData/ após o unity_export.py
 PaperCave/papers/*/
 
-# Outputs e logs gerados em execução
-PaperCave/outputs/
+# Outputs do pipeline Python — versionar (contém JSONs e imagens processadas)
+# PaperCave/outputs/  ← removido intencionalmente: outputs devem ir para o repo
 PaperCave/logs/
 
 # Configuração local com chaves/segredos

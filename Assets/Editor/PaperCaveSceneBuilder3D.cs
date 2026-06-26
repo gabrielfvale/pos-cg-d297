@@ -1,3 +1,5 @@
+using System.Linq;
+using Newtonsoft.Json.Linq;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -23,9 +25,10 @@ public static class PaperCaveSceneBuilder3D
     static readonly Color BgColor = Hex("#0A1628");
     static readonly Color White   = Color.white;
 
-    const string FigureFolder = "Assets/Paper Figures/";
-    const string MatFolder    = "Assets/PaperCave3D/Materials/";
-    const string ScenePath    = "Assets/Scenes/PaperCave_Cards_3D.unity";
+    const string FigureFolder  = "Assets/Paper Figures/";
+    const string MatFolder     = "Assets/PaperCave3D/Materials/";
+    const string ScenePath     = "Assets/Scenes/PaperCave_Cards_3D.unity";
+    const string VFXLibraryPath = "Assets/PaperCave3D/PaperCaveVFXLibrary.asset";
 
     static TMP_FontAsset _font;
 
@@ -229,33 +232,45 @@ public static class PaperCaveSceneBuilder3D
     {
         Color catColor = ParseColor(data.styleHint?.categoryColor ?? "#FFFFFF");
         string category = data.category ?? "result";
-        string title   = data.title ?? "";
-        string summary = data.summary ?? "";
+        string title    = data.title ?? "";
+        string summary  = data.summary ?? "";
+
+        string displayTitle   = (data.type == "stack") ? (data.stackLabel ?? data.id) : title;
+        string displaySummary = (data.type == "stack")
+            ? $"▶ {data.items?.Count ?? 0} cards — {category}"
+            : summary;
 
         var c = CreateCard(
             data.id ?? "unit",
             w, h, pos, yRot,
-            category, catColor, title, summary
+            category, catColor, displayTitle, displaySummary
         );
 
-        switch (data.contentType)
+        if (data.type == "stack")
         {
-            case "figure":
-                BuildExpandedFigure(c, data, paperId, catColor);
-                break;
-            case "chart":
-                BuildExpandedChart(c, data, catColor);
-                break;
-            case "table":
-                BuildExpandedTable(c, data, catColor);
-                break;
-            case "animation":
-                BuildExpandedAnimation(c, data, catColor);
-                break;
-            case "text_panel":
-            default:
-                BuildExpandedTextPanel(c, data, catColor);
-                break;
+            BuildStackCard(c, data, paperId, catColor);
+        }
+        else
+        {
+            switch (data.contentType)
+            {
+                case "figure":
+                    BuildExpandedFigure(c, data, paperId, catColor);
+                    break;
+                case "chart":
+                    BuildExpandedChart(c, data, catColor);
+                    break;
+                case "table":
+                    BuildExpandedTable(c, data, catColor);
+                    break;
+                case "animation":
+                    BuildExpandedAnimation(c, data, catColor);
+                    break;
+                case "text_panel":
+                default:
+                    BuildExpandedTextPanel(c, data, catColor);
+                    break;
+            }
         }
 
         // Golden highlight for the primary card.
@@ -270,6 +285,138 @@ public static class PaperCaveSceneBuilder3D
             l.intensity = 0.8f;
             l.range     = 2.0f;
         }
+
+        var vfxLibrary = AssetDatabase.LoadAssetAtPath<PaperCaveVFXLibrary>(VFXLibraryPath);
+        WireVFX(c, vfxLibrary);
+    }
+
+    static void BuildStackCard(CardParts c, PaperUnitData data, string paperId, Color catColor)
+    {
+        var e = c.expanded;
+        BuildExpandedHeader(e, data.category, catColor, data.stackLabel ?? data.id);
+
+        var items = data.items;
+        if (items == null || items.Count == 0)
+        {
+            BuildExpandedTextPanel(c, new PaperUnitData
+            {
+                content = new PaperCardContent { description = data.category }
+            }, catColor);
+            return;
+        }
+
+        var panels = new GameObject[items.Count];
+        for (int i = 0; i < items.Count; i++)
+        {
+            var panelGO = NewUI($"StackItem_{i}", e);
+            panelGO.SetActive(i == 0);
+            BuildStackItemContent(panelGO.transform, items[i], paperId, catColor, c.pxW, c.pxH);
+            panels[i] = panelGO;
+        }
+
+        var counter = AddTMP(e, "Counter", $"1 / {items.Count}", 7f, Alpha(White, 0.6f),
+            false, false, TextAlignmentOptions.Center, false);
+        Band(counter.rectTransform, 134f, 14f, 6f, 6f);
+
+        var flip = c.expanded.gameObject.AddComponent<StackFlipController>();
+        flip.panels      = panels;
+        flip.counterText = counter;
+
+        var buttons = new GameObject("FlipButtons");
+        buttons.transform.SetParent(c.root.transform, false);
+        buttons.SetActive(false);
+        c.card.expandedExtra = buttons;
+
+        MakeFlipButton(buttons.transform, "PrevButton", "‹ PREV", catColor, flip, -1,
+            new Vector3(-0.33f, -0.74f, -0.03f));
+        MakeFlipButton(buttons.transform, "NextButton", "NEXT ›", catColor, flip, +1,
+            new Vector3( 0.33f, -0.74f, -0.03f));
+    }
+
+    static void BuildStackItemContent(Transform parent, StackItemData item,
+        string paperId, Color catColor, float pxW, float pxH)
+    {
+        var unitProxy = new PaperUnitData
+        {
+            id          = item.index?.ToString() ?? "0",
+            type        = "card",
+            title       = item.title,
+            contentType = item.contentType,
+            content     = item.content,
+            category    = "",
+        };
+
+        if (!string.IsNullOrEmpty(item.title))
+        {
+            var titleTMP = AddTMP(parent, "ItemTitle", item.title, 10f, White, true, false,
+                TextAlignmentOptions.TopLeft, true);
+            Band(titleTMP.rectTransform, 42f, 18f, 8f, 8f);
+        }
+
+        var tempCard = new CardParts
+        {
+            expanded = parent,
+            root     = parent.gameObject,
+            pxW      = pxW,
+            pxH      = pxH,
+            catColor = catColor,
+        };
+
+        switch (item.contentType)
+        {
+            case "figure":    BuildExpandedFigure(tempCard, unitProxy, paperId, catColor); break;
+            case "chart":     BuildExpandedChart(tempCard, unitProxy, catColor);            break;
+            case "table":     BuildExpandedTable(tempCard, unitProxy, catColor);            break;
+            case "animation": BuildExpandedAnimation(tempCard, unitProxy, catColor);        break;
+            default:          BuildExpandedTextPanel(tempCard, unitProxy, catColor);        break;
+        }
+    }
+
+    static void MakeFlipButton(Transform parent, string name, string text, Color color,
+        StackFlipController flip, int dir, Vector3 localPos)
+    {
+        var quad = MakeQuad(name, parent, localPos, new Vector3(0.52f, 0.18f, 1f),
+            Quaternion.identity, EmissiveMat(color));
+        var col = quad.AddComponent<BoxCollider>();
+        col.size = new Vector3(1f, 1f, 0.2f);
+        var btn = quad.AddComponent<StackFlipButton>();
+        btn.target    = flip;
+        btn.direction = dir;
+
+        var labelGO = new GameObject(name + "_Label");
+        labelGO.transform.SetParent(parent, false);
+        labelGO.transform.localPosition = localPos + new Vector3(0f, 0f, -0.02f);
+        var tmp = labelGO.AddComponent<TextMeshPro>();
+        tmp.font      = TMPFont();
+        tmp.text      = text;
+        tmp.fontSize  = 1.1f;
+        tmp.color     = BgColor;
+        tmp.fontStyle = FontStyles.Bold;
+        tmp.alignment = TextAlignmentOptions.Center;
+        ((RectTransform)labelGO.transform).sizeDelta = new Vector2(0.5f, 0.18f);
+    }
+
+    static void WireVFX(CardParts c, PaperCaveVFXLibrary library)
+    {
+        if (library == null || library.presets.Count == 0) return;
+
+        var mgr = c.root.AddComponent<VFXManager>();
+        foreach (var preset in library.presets)
+        {
+            mgr.AddEffect(new VFXManager.VFXEntry
+            {
+                prefab          = preset.prefab,
+                spawnPoint      = c.root.transform,
+                localOffset     = preset.localOffset,
+                scaleMultiplier = preset.scaleMultiplier,
+                destroyAfter    = preset.destroyAfter,
+                followTarget    = preset.followTarget,
+            });
+        }
+
+        var bridge = c.root.AddComponent<CardClickVFXBridge>();
+        bridge.vfxManager  = mgr;
+        bridge.effectIndex = 0;
     }
 
     static void BuildExpandedFigure(CardParts c, PaperUnitData data, string paperId, Color catColor)
@@ -312,15 +459,106 @@ public static class PaperCaveSceneBuilder3D
             Band(ct.rectTransform, 42f, 18f, 8f, 8f);
         }
 
-        // Render description as fallback — full chart data rendering needs
-        // the full data object which requires further runtime implementation.
-        string desc = data.content?.description ?? "";
-        if (!string.IsNullOrEmpty(desc))
+        JObject jobj = null;
+        if (data.content?.data != null)
+            jobj = data.content.data as JObject ?? JObject.FromObject(data.content.data);
+
+        if (jobj != null && jobj["labels"] != null && jobj["values"] != null)
         {
-            var dt = AddTMP(e, "Description", desc, 9f, White, false, false,
-                TextAlignmentOptions.TopLeft, true);
-            dt.maxVisibleLines = 6;
-            Band(dt.rectTransform, 62f, 100f, 10f, 10f);
+            string[] labels = jobj["labels"].ToObject<string[]>();
+            float[]  values = jobj["values"].ToObject<float[]>();
+            float?   average = jobj["average"]?.Value<float?>();
+
+            int   n    = Mathf.Min(labels.Length, values.Length);
+            float yMin = 0f;
+            float yMax = n > 0 ? Mathf.Ceil(values.Take(n).Max() * 1.2f) : 1f;
+            if (yMax <= 0f) yMax = 1f;
+
+            var frame = NewUI("PlotFrame", e);
+            Band(frame.GetComponent<RectTransform>(), 62f, 92f, 8f, 8f);
+
+            const float plotH    = 56f;
+            const float baseY    = 16f;
+            const float leftPad  = 0.04f;
+            const float rightPad = 0.02f;
+
+            float spanW = 1f - leftPad - rightPad;
+            float slot  = n > 0 ? spanW / n : spanW;
+
+            for (int i = 0; i < n; i++)
+            {
+                float cx   = leftPad + slot * (i + 0.5f);
+                float half = slot * 0.34f;
+                float hgt  = Mathf.Clamp01((values[i] - yMin) / (yMax - yMin)) * plotH;
+
+                var bar = AddImage(frame.transform, "Bar_" + i, catColor);
+                var r = bar.rectTransform;
+                r.anchorMin = new Vector2(cx - half, 0f);
+                r.anchorMax = new Vector2(cx + half, 0f);
+                r.pivot     = new Vector2(0.5f, 0f);
+                r.offsetMin = new Vector2(0f, baseY);
+                r.offsetMax = new Vector2(0f, baseY + hgt);
+
+                var vl = AddTMP(frame.transform, "Val_" + i, values[i].ToString("0.0"), 6f,
+                    Alpha(White, 0.85f), false, false, TextAlignmentOptions.Bottom, false);
+                var vr = vl.rectTransform;
+                vr.anchorMin = new Vector2(cx - slot * 0.5f, 0f);
+                vr.anchorMax = new Vector2(cx + slot * 0.5f, 0f);
+                vr.pivot     = new Vector2(0.5f, 0f);
+                vr.offsetMin = new Vector2(0f, baseY + hgt);
+                vr.offsetMax = new Vector2(0f, baseY + hgt + 12f);
+
+                var xl = AddTMP(frame.transform, "Lbl_" + i, Truncate(labels[i], 12), 6f, White,
+                    false, false, TextAlignmentOptions.Top, true);
+                var xr = xl.rectTransform;
+                xr.anchorMin = new Vector2(cx - slot * 0.5f, 0f);
+                xr.anchorMax = new Vector2(cx + slot * 0.5f, 0f);
+                xr.pivot     = new Vector2(0.5f, 1f);
+                xr.offsetMin = new Vector2(0f, 0f);
+                xr.offsetMax = new Vector2(0f, baseY);
+            }
+
+            if (average.HasValue)
+            {
+                float refY = baseY + Mathf.Clamp01((average.Value - yMin) / (yMax - yMin)) * plotH;
+                var refLine = AddImage(frame.transform, "RefLine", Alpha(White, 0.5f));
+                var rr = refLine.rectTransform;
+                rr.anchorMin = new Vector2(leftPad, 0f);
+                rr.anchorMax = new Vector2(1f - rightPad, 0f);
+                rr.pivot     = new Vector2(0.5f, 0.5f);
+                rr.offsetMin = new Vector2(0f, refY - 0.5f);
+                rr.offsetMax = new Vector2(0f, refY + 0.5f);
+
+                var refLbl = AddTMP(frame.transform, "RefLabel",
+                    $"avg {average.Value:0.00}", 6f, Alpha(White, 0.7f),
+                    false, true, TextAlignmentOptions.BottomRight, false);
+                var rl = refLbl.rectTransform;
+                rl.anchorMin = new Vector2(1f - rightPad - 0.4f, 0f);
+                rl.anchorMax = new Vector2(1f - rightPad, 0f);
+                rl.pivot     = new Vector2(1f, 0f);
+                rl.offsetMin = new Vector2(0f, refY + 1f);
+                rl.offsetMax = new Vector2(0f, refY + 11f);
+            }
+
+            string desc = data.content?.description ?? "";
+            if (!string.IsNullOrEmpty(desc))
+            {
+                var note = AddTMP(e, "Note", desc, 8f, Alpha(White, 0.8f), false, false,
+                    TextAlignmentOptions.TopLeft, true);
+                note.maxVisibleLines = 3;
+                Band(note.rectTransform, 156f, 24f, 10f, 10f);
+            }
+        }
+        else
+        {
+            string desc = data.content?.description ?? "";
+            if (!string.IsNullOrEmpty(desc))
+            {
+                var dt = AddTMP(e, "Description", desc, 9f, White, false, false,
+                    TextAlignmentOptions.TopLeft, true);
+                dt.maxVisibleLines = 6;
+                Band(dt.rectTransform, 62f, 100f, 10f, 10f);
+            }
         }
     }
 
@@ -337,13 +575,56 @@ public static class PaperCaveSceneBuilder3D
             Band(tt.rectTransform, 42f, 16f, 8f, 8f);
         }
 
-        string desc = data.content?.description ?? "";
-        if (!string.IsNullOrEmpty(desc))
+        JObject jobj = null;
+        if (data.content?.data != null)
+            jobj = data.content.data as JObject ?? JObject.FromObject(data.content.data);
+
+        if (jobj != null && jobj["columns"] != null && jobj["rows"] != null)
         {
-            var dt = AddTMP(e, "Description", desc, 9f, White, false, false,
-                TextAlignmentOptions.TopLeft, true);
-            dt.maxVisibleLines = 6;
-            Band(dt.rectTransform, 60f, 110f, 10f, 10f);
+            string[]   columns = jobj["columns"].ToObject<string[]>();
+            string[][] rows    = jobj["rows"].ToObject<string[][]>();
+
+            string hex = "#" + ColorUtility.ToHtmlStringRGB(catColor);
+            var sb = new System.Text.StringBuilder();
+
+            if (columns.Length >= 3)
+                sb.Append($"<b><color={hex}>{Truncate(columns[0], 20)}<pos=40%>{Truncate(columns[1], 20)}<pos=75%>{Truncate(columns[2], 20)}</color></b>");
+            else if (columns.Length >= 2)
+                sb.Append($"<b><color={hex}>{Truncate(columns[0], 20)}<pos=58%>{Truncate(columns[1], 20)}</color></b>");
+
+            foreach (var row in rows)
+            {
+                if (row.Length >= 3)
+                    sb.Append($"\n{Truncate(row[0], 20)}<pos=40%>{Truncate(row[1], 20)}<pos=75%>{Truncate(row[2], 20)}");
+                else if (row.Length >= 2)
+                    sb.Append($"\n{Truncate(row[0], 20)}<pos=58%>{Truncate(row[1], 20)}");
+                else if (row.Length == 1)
+                    sb.Append($"\n{Truncate(row[0], 20)}");
+            }
+
+            var table = AddTMP(e, "Table", sb.ToString(), 9f, White, false, false,
+                TextAlignmentOptions.TopLeft, false);
+            Band(table.rectTransform, 60f, 74f, 10f, 10f);
+
+            string desc = data.content?.description ?? "";
+            if (!string.IsNullOrEmpty(desc))
+            {
+                var note = AddTMP(e, "Note", desc, 8f, Alpha(White, 0.8f), false, false,
+                    TextAlignmentOptions.TopLeft, true);
+                note.maxVisibleLines = 3;
+                Band(note.rectTransform, 138f, 42f, 10f, 10f);
+            }
+        }
+        else
+        {
+            string desc = data.content?.description ?? "";
+            if (!string.IsNullOrEmpty(desc))
+            {
+                var dt = AddTMP(e, "Description", desc, 9f, White, false, false,
+                    TextAlignmentOptions.TopLeft, true);
+                dt.maxVisibleLines = 6;
+                Band(dt.rectTransform, 60f, 110f, 10f, 10f);
+            }
         }
     }
 
@@ -401,9 +682,9 @@ public static class PaperCaveSceneBuilder3D
         view.frames = builtFrames;
 
         var buttons = new UnityEngine.GameObject("AnimButtons");
-        buttons.transform.SetParent(c.root.transform, false);
+        buttons.transform.SetParent(c.root != null ? c.root.transform : c.expanded, false);
         buttons.SetActive(false);
-        c.card.expandedExtra = buttons;
+        if (c.card != null) c.card.expandedExtra = buttons;
 
         MakeAnimButton(buttons.transform, "PrevButton", "‹ PREV", catColor, view, -1,
             new Vector3(-0.33f, -0.74f, -0.03f));

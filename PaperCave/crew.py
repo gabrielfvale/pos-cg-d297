@@ -42,6 +42,10 @@ from datetime import datetime
 from dotenv import load_dotenv
 from crewai import Crew, Task, Process
 
+# Suppress noisy third-party loggers before any imports that trigger them
+for _noisy in ("litellm", "crewai", "openai", "httpx", "httpcore", "urllib3", "google_genai"):
+    logging.getLogger(_noisy).setLevel(logging.ERROR)
+
 from utils.config_loader import load_config, make_llm, make_json_llm, get_config_summary
 from utils.slug import slugify
 from utils.pdf_selector import select_paper_folder
@@ -113,6 +117,7 @@ def setup_logging(paper_id: str) -> logging.Logger:
 
     logger = logging.getLogger("paper_cave")
     logger.setLevel(logging.DEBUG)
+    logger.handlers.clear()   # reset handlers to avoid duplicate output on re-runs
 
     fh = logging.FileHandler(log_file, encoding="utf-8")
     fh.setLevel(logging.DEBUG)
@@ -125,47 +130,95 @@ def setup_logging(paper_id: str) -> logging.Logger:
     ch.setLevel(logging.INFO)
     ch.setFormatter(logging.Formatter("%(message)s"))
 
-    if not logger.handlers:
-        logger.addHandler(fh)
-        logger.addHandler(ch)
-        for lib in ["crewai", "litellm"]:
-            logging.getLogger(lib).addHandler(fh)
+    logger.addHandler(fh)
+    logger.addHandler(ch)
+
+    # Route third-party logs to file only (not console)
+    for lib in ("crewai", "litellm", "openai"):
+        lib_logger = logging.getLogger(lib)
+        lib_logger.handlers.clear()
+        lib_logger.addHandler(fh)
+        lib_logger.propagate = False
 
     logger.info(f"Session log: {log_file}")
     return logger
 
 
+# ── Progress display ───────────────────────────────────────────────────────────
+
+class _Step:
+    """Context manager that prints timed step progress to the console."""
+
+    def __init__(self, logger, n: int, total: int, name: str):
+        self._logger = logger
+        self._label  = f"[{n}/{total}] {name}"
+        self._t0     = 0.0
+
+    def __enter__(self):
+        self._t0 = time.time()
+        self._logger.info(f"\n  +- {self._label}")
+        return self
+
+    def done(self, detail: str = ""):
+        elapsed = time.time() - self._t0
+        suffix  = f" — {detail}" if detail else ""
+        self._logger.info(f"  +- ✓ {elapsed:.0f}s{suffix}")
+
+    def fail(self, reason: str = ""):
+        elapsed = time.time() - self._t0
+        self._logger.error(f"  +- ✗ {elapsed:.0f}s — {reason}")
+
+    def __exit__(self, exc_type, *_):
+        if exc_type is not None:
+            self.fail(str(exc_type.__name__) if exc_type else "")
+
+
 # ── Transient API error retry ──────────────────────────────────────────────────
 
-def call_with_backoff(fn, max_attempts: int = 4, base_delay: float = 2.0, logger=None):
+def call_with_backoff(fn, max_attempts: int = 5, base_delay: float = 3.0, logger=None):
     """
     Retries a callable on transient API errors (rate limits, 503s) with
-    exponential backoff. Distinct from schema-validation retries — assumes
-    the request was valid but the API was temporarily unavailable.
+    exponential backoff. Catches both LiteLLM exceptions and generic HTTP errors
+    that contain status codes 429/500/503 in their message.
     """
     try:
-        from litellm.exceptions import RateLimitError, ServiceUnavailableError
-        transient_errors = (RateLimitError, ServiceUnavailableError)
+        from litellm.exceptions import RateLimitError, ServiceUnavailableError, APIError
+        transient_litellm = (RateLimitError, ServiceUnavailableError, APIError)
     except ImportError:
-        transient_errors = ()
+        transient_litellm = ()
 
+    def _is_transient(exc: Exception) -> bool:
+        if transient_litellm and isinstance(exc, transient_litellm):
+            return True
+        msg = str(exc).lower()
+        return any(code in msg for code in ("503", "429", "rate limit", "unavailable", "overloaded"))
+
+    last_exc: Exception | None = None
     for attempt in range(1, max_attempts + 1):
         try:
             return fn()
-        except transient_errors as e:
-            if attempt == max_attempts:
+        except KeyboardInterrupt:
+            raise
+        except Exception as exc:
+            if not _is_transient(exc):
                 raise
+            last_exc = exc
+            if attempt == max_attempts:
+                break
             delay = base_delay * (2 ** (attempt - 1))
             msg = (
-                f"  Transient API error (attempt {attempt}/{max_attempts}): {e}. "
-                f"Retrying in {delay:.0f}s..."
+                f"  API indisponível (tentativa {attempt}/{max_attempts}): "
+                f"{type(exc).__name__}. Aguardando {delay:.0f}s..."
             )
             if logger:
                 logger.warning(msg)
             else:
                 print(msg)
             time.sleep(delay)
-    return fn()  # unreachable but satisfies type checkers
+
+    raise RuntimeError(
+        f"API falhou após {max_attempts} tentativas. Último erro: {last_exc}"
+    ) from last_exc
 
 
 # ── Post-processing ────────────────────────────────────────────────────────────
@@ -260,7 +313,7 @@ def _describe_paper_figures(
             agents=[agents["vision_analyst"]],
             tasks=[analyst_task],
             process=Process.sequential,
-            verbose=True,
+            verbose=False,
         ).kickoff(),
         logger=logger,
     )
@@ -320,11 +373,23 @@ def _run_mapper_reviewer_loop(
         if logger:
             logger.info(f"  Mapper attempt {attempt}/{max_attempts}")
 
-        # Inject Reviewer feedback from previous attempt
+        # Inject Reviewer feedback (or schema error) from previous attempt
         mapper_context = manifest_context
         if attempt > 1 and attempt_history:
-            last_review = attempt_history[-1]["review"]
-            if last_review is not None:
+            last_entry = attempt_history[-1]
+            last_review = last_entry.get("review")
+            last_schema_error = last_entry.get("schema_error")
+            if last_schema_error:
+                mapper_context += (
+                    f"\n\nSCHEMA VALIDATION ERRORS FROM ATTEMPT {attempt - 1}:\n"
+                    f"{last_schema_error}\n\n"
+                    "Your previous response was REJECTED due to schema errors. "
+                    "Read each error carefully and fix them before responding. "
+                    "Pay special attention to character limits: "
+                    "title/stackLabel max 30 chars, summary max 80 chars, "
+                    "animation frame label max 20 chars, frame description max 120 chars."
+                )
+            elif last_review is not None:
                 feedback_lines = [
                     f"  - {s['suggestedName']}: {s['feedback']}"
                     for s in last_review["objectScores"]
@@ -343,18 +408,28 @@ def _run_mapper_reviewer_loop(
             agent=agents["mapper"],
             output_pydantic=UnitManifest,
         )
-        mapper_result = call_with_backoff(
-            lambda: Crew(
-                agents=[agents["mapper"]],
-                tasks=[map_task],
-                process=Process.sequential,
-                verbose=True,
-            ).kickoff(),
-            logger=logger,
-        )
-
-        task_out  = mapper_result.tasks_output[0]
-        manifest, _ = _process_output(task_out, UnitManifest, logger)
+        try:
+            mapper_result = call_with_backoff(
+                lambda: Crew(
+                    agents=[agents["mapper"]],
+                    tasks=[map_task],
+                    process=Process.sequential,
+                    verbose=False,
+                ).kickoff(),
+                logger=logger,
+            )
+            task_out  = mapper_result.tasks_output[0]
+            manifest, _ = _process_output(task_out, UnitManifest, logger)
+        except KeyboardInterrupt:
+            raise
+        except Exception as exc:
+            # Pydantic ValidationError raised inside CrewAI task execution counts
+            # as a schema failure — log and retry instead of crashing the pipeline.
+            schema_error = f"{type(exc).__name__}: {str(exc)[:500]}"
+            if logger:
+                logger.warning(f"  Mapper attempt {attempt} schema error: {schema_error[:200]}")
+            attempt_history.append({"manifest": None, "review": None, "schema_error": schema_error})
+            continue
 
         if manifest is None:
             if logger:
@@ -377,17 +452,27 @@ def _run_mapper_reviewer_loop(
             agent=agents["reviewer"],
             output_pydantic=ReviewResult,
         )
-        review_raw = call_with_backoff(
-            lambda: Crew(
-                agents=[agents["reviewer"]],
-                tasks=[review_task],
-                process=Process.sequential,
-                verbose=True,
-            ).kickoff(),
-            logger=logger,
-        )
-
-        review, _ = _process_output(review_raw.tasks_output[0], ReviewResult, logger)
+        try:
+            review_raw = call_with_backoff(
+                lambda: Crew(
+                    agents=[agents["reviewer"]],
+                    tasks=[review_task],
+                    process=Process.sequential,
+                    verbose=False,
+                ).kickoff(),
+                logger=logger,
+            )
+            review, _ = _process_output(review_raw.tasks_output[0], ReviewResult, logger)
+        except KeyboardInterrupt:
+            raise
+        except Exception as exc:
+            if logger:
+                logger.warning(
+                    f"  Reviewer attempt {attempt} schema error: "
+                    f"{type(exc).__name__}: {str(exc)[:200]}"
+                )
+            attempt_history.append({"manifest": manifest, "review": None})
+            break
 
         if review is None:
             if logger:
@@ -576,37 +661,37 @@ def run(
 
     # ── Step 1: Reader ─────────────────────────────────────────────────────────
     if from_step is None:
-        logger.info("  [1/6] Reader — extracting text from PDF...")
-        read_task = Task(
-            description=tp["read"]["description"].format(pdf_path=pdf_path),
-            expected_output=tp["read"]["expected_output"],
-            agent=agents["reader"],
-        )
-        read_result = call_with_backoff(
-            lambda: Crew(
-                agents=[agents["reader"]],
-                tasks=[read_task],
-                process=Process.sequential,
-                verbose=True,
-            ).kickoff(),
-            logger=logger,
-        )
-        reader_out  = read_result.tasks_output[0]
-        raw_text    = reader_out.raw or ""
-        text_clean  = strip_thinking_tags(raw_text) if has_thinking_tags(raw_text) else raw_text
-        save_output(paper_id, "01_reader_output", {"raw": text_clean})
-        full_text   = text_clean or full_text
-
-        # Update captions with Reader's cleaned text
-        if available_figs and full_text:
-            update_figure_captions(paper_context, full_text)
+        with _Step(logger, 1, 6, "Reader — extraindo texto do PDF") as step:
+            read_task = Task(
+                description=tp["read"]["description"].format(pdf_path=pdf_path),
+                expected_output=tp["read"]["expected_output"],
+                agent=agents["reader"],
+            )
+            read_result = call_with_backoff(
+                lambda: Crew(
+                    agents=[agents["reader"]],
+                    tasks=[read_task],
+                    process=Process.sequential,
+                    verbose=False,
+                ).kickoff(),
+                logger=logger,
+            )
+            reader_out  = read_result.tasks_output[0]
+            raw_text    = reader_out.raw or ""
+            text_clean  = strip_thinking_tags(raw_text) if has_thinking_tags(raw_text) else raw_text
+            save_output(paper_id, "01_reader_output", {"raw": text_clean})
+            full_text   = text_clean or full_text
+            if available_figs and full_text:
+                update_figure_captions(paper_context, full_text)
+            step.done(f"{len(full_text):,} chars")
     else:
         try:
             full_text = _load_json_output(paper_id, "01_reader_output.json").get("raw", full_text)
             if available_figs and full_text:
                 update_figure_captions(paper_context, full_text)
+            logger.info("  [1/6] Reader — usando output salvo.")
         except FileNotFoundError:
-            pass
+            logger.info("  [1/6] Reader — output não encontrado, usando texto do PDF.")
 
     # Rebuild map task description with updated captions after Reader
     if not simple_mode and full_text:
@@ -617,128 +702,141 @@ def run(
 
     if not skip_vision:
         if from_step in (None, "vision_analyst"):
-            logger.info("  [2/6] Vision Analyst — describing paper figures...")
-            insights = _describe_paper_figures(paper_folder, paper_context, agents, tp, logger)
-            if insights:
-                save_output(paper_id, "03_vision_insights", insights.model_dump())
+            n_figs = len(paper_context.get("available_figures", []))
+            if n_figs:
+                with _Step(logger, 2, 6, f"Vision Analyst — {n_figs} figura(s)") as step:
+                    insights = _describe_paper_figures(paper_folder, paper_context, agents, tp, logger)
+                    if insights:
+                        save_output(paper_id, "03_vision_insights", insights.model_dump())
+                        step.done(f"{len(insights.insights)} figura(s) descritas")
+                    else:
+                        step.done("sem figuras para descrever")
+            else:
+                logger.info("  [2/6] Vision Analyst — sem FIG*.png, etapa ignorada.")
     else:
         try:
             ins_data  = _load_json_output(paper_id, "03_vision_insights.json")
             insights  = ImageInsights.model_validate(ins_data)
+            logger.info(f"  [2/6] Vision Analyst — usando output salvo ({len(insights.insights)} figuras).")
         except (FileNotFoundError, Exception):
-            pass
+            logger.info("  [2/6] Vision Analyst — output não encontrado, continuando sem insights visuais.")
 
     # ── Step 3: Summarizer ─────────────────────────────────────────────────────
     if from_step not in ("extractor", "mapper", "reviewer"):
-        logger.info("  [3/6] Summarizer...")
+        with _Step(logger, 3, 6, "Summarizer") as step:
+            visual_block = ""
+            if insights and insights.insights:
+                lines = ["VISUAL INSIGHTS (from pre-extracted paper figures):"]
+                for ins in insights.insights:
+                    lines.append(
+                        f"  [{ins.filename}] {ins.description} "
+                        f"(relevance: {ins.relevance})"
+                        + (" [text inferred]" if ins.mode == "text_inferred" else "")
+                    )
+                visual_block = "\n" + "\n".join(lines)
 
-        visual_block = ""
-        if insights and insights.insights:
-            lines = ["VISUAL INSIGHTS (from pre-extracted paper figures):"]
-            for ins in insights.insights:
-                lines.append(
-                    f"  [{ins.filename}] {ins.description} "
-                    f"(relevance: {ins.relevance})"
-                    + (" [text inferred]" if ins.mode == "text_inferred" else "")
-                )
-            visual_block = "\n" + "\n".join(lines)
-
-        summarize_desc = (
-            tp["summarize"]["description"]
-            + f"\n\nFull paper text:\n\n{full_text[:60000]}"
-            + visual_block
-        )
-        summarize_task = Task(
-            description=summarize_desc,
-            expected_output=tp["summarize"]["expected_output"],
-            agent=agents["summarizer"],
-        )
-        sum_result = call_with_backoff(
-            lambda: Crew(
-                agents=[agents["summarizer"]],
-                tasks=[summarize_task],
-                process=Process.sequential,
-                verbose=True,
-            ).kickoff(),
-            logger=logger,
-        )
-        sum_out   = sum_result.tasks_output[0]
-        raw_sum   = sum_out.raw or ""
-        sum_clean = strip_thinking_tags(raw_sum) if has_thinking_tags(raw_sum) else raw_sum
-        save_output(paper_id, "04_summarizer_output", {"raw": sum_clean})
-        summary_text = sum_clean
+            summarize_desc = (
+                tp["summarize"]["description"]
+                + f"\n\nFull paper text:\n\n{full_text[:60000]}"
+                + visual_block
+            )
+            summarize_task = Task(
+                description=summarize_desc,
+                expected_output=tp["summarize"]["expected_output"],
+                agent=agents["summarizer"],
+            )
+            sum_result = call_with_backoff(
+                lambda: Crew(
+                    agents=[agents["summarizer"]],
+                    tasks=[summarize_task],
+                    process=Process.sequential,
+                    verbose=False,
+                ).kickoff(),
+                logger=logger,
+            )
+            sum_out   = sum_result.tasks_output[0]
+            raw_sum   = sum_out.raw or ""
+            sum_clean = strip_thinking_tags(raw_sum) if has_thinking_tags(raw_sum) else raw_sum
+            save_output(paper_id, "04_summarizer_output", {"raw": sum_clean})
+            summary_text = sum_clean
+            step.done(f"{len(sum_clean):,} chars")
     else:
         summary_text = _load_json_output(paper_id, "04_summarizer_output.json").get("raw", "")
+        logger.info("  [3/6] Summarizer — usando output salvo.")
 
     # ── Step 4: Extractor ──────────────────────────────────────────────────────
     if from_step not in ("mapper", "reviewer"):
-        logger.info("  [4/6] Extractor...")
-        extract_task = Task(
-            description=tp["extract"]["description"] + f"\n\nSummary:\n\n{summary_text}",
-            expected_output=tp["extract"]["expected_output"],
-            agent=agents["extractor"],
-            output_pydantic=ExtractionResult,
-        )
-        ext_result = call_with_backoff(
-            lambda: Crew(
-                agents=[agents["extractor"]],
-                tasks=[extract_task],
-                process=Process.sequential,
-                verbose=True,
-            ).kickoff(),
-            logger=logger,
-        )
-        extraction, _ = _process_output(ext_result.tasks_output[0], ExtractionResult, logger)
+        with _Step(logger, 4, 6, "Extractor") as step:
+            extract_task = Task(
+                description=tp["extract"]["description"] + f"\n\nSummary:\n\n{summary_text}",
+                expected_output=tp["extract"]["expected_output"],
+                agent=agents["extractor"],
+                output_pydantic=ExtractionResult,
+            )
+            ext_result = call_with_backoff(
+                lambda: Crew(
+                    agents=[agents["extractor"]],
+                    tasks=[extract_task],
+                    process=Process.sequential,
+                    verbose=False,
+                ).kickoff(),
+                logger=logger,
+            )
+            extraction, _ = _process_output(ext_result.tasks_output[0], ExtractionResult, logger)
 
-        if extraction is None:
-            logger.error("  ERROR: Extractor failed — aborting pipeline.")
-            return None
-        save_output(paper_id, "05_extractor_output", extraction.model_dump())
+            if extraction is None:
+                step.fail("falha no schema — abortando pipeline")
+                return None
+            save_output(paper_id, "05_extractor_output", extraction.model_dump())
+            step.done()
     else:
         ext_data   = _load_json_output(paper_id, "05_extractor_output.json")
         extraction = ExtractionResult.model_validate(ext_data)
+        logger.info("  [4/6] Extractor — usando output salvo.")
 
     # ── Steps 5+6: Mapper → Reviewer (retry loop) ─────────────────────────────
     if from_step != "reviewer":
-        logger.info("  [5-6/6] Mapper → Reviewer (retry loop)...")
+        with _Step(logger, 5, 6, f"Mapper → Reviewer (máx {max_retries} tentativas)") as step:
+            manifest_context = extraction.model_dump_json(indent=2)
 
-        manifest_context = extraction.model_dump_json(indent=2)
+            reviewed = _run_mapper_reviewer_loop(
+                manifest_context=manifest_context,
+                agents=agents,
+                tp=tp,
+                available_figures=available_figs,
+                card_count=card_count,
+                simple_mode=simple_mode,
+                map_task_base_description=map_task_description,
+                max_attempts=max_retries,
+                logger=logger,
+            )
 
-        reviewed = _run_mapper_reviewer_loop(
-            manifest_context=manifest_context,
-            agents=agents,
-            tp=tp,
-            available_figures=available_figs,
-            card_count=card_count,
-            simple_mode=simple_mode,
-            map_task_base_description=map_task_description,
-            max_attempts=max_retries,
-            logger=logger,
-        )
+            if reviewed is None:
+                step.fail("falhou em todas as tentativas")
+                return None
 
-        if reviewed is None:
-            logger.error("  ERROR: Mapper/Reviewer failed on all attempts.")
-            return None
-
-        save_output(paper_id, "06_mapper_output",   reviewed.model_dump())
-        save_output(paper_id, "07_reviewer_output", reviewed.model_dump())
-    else:
-        logger.info("  [6/6] Reviewer — re-evaluating saved manifest...")
-
-        manifest_context = extraction.model_dump_json(indent=2)
-        reviewed = _run_mapper_reviewer_loop(
-            manifest_context=manifest_context,
-            agents=agents,
-            tp=tp,
-            available_figures=available_figs,
-            card_count=card_count,
-            simple_mode=simple_mode,
-            map_task_base_description=map_task_description,
-            max_attempts=max_retries,
-            logger=logger,
-        )
-        if reviewed:
+            save_output(paper_id, "06_mapper_output",   reviewed.model_dump())
             save_output(paper_id, "07_reviewer_output", reviewed.model_dump())
+            step.done(f"{reviewed.unitCount} unidade(s), {reviewed.totalAttempts} tentativa(s)")
+    else:
+        with _Step(logger, 6, 6, "Reviewer — re-avaliando manifest salvo") as step:
+            manifest_context = extraction.model_dump_json(indent=2)
+            reviewed = _run_mapper_reviewer_loop(
+                manifest_context=manifest_context,
+                agents=agents,
+                tp=tp,
+                available_figures=available_figs,
+                card_count=card_count,
+                simple_mode=simple_mode,
+                map_task_base_description=map_task_description,
+                max_attempts=max_retries,
+                logger=logger,
+            )
+            if reviewed:
+                save_output(paper_id, "07_reviewer_output", reviewed.model_dump())
+                step.done(f"{reviewed.unitCount} unidade(s)")
+            else:
+                step.fail("sem resultado")
 
     logger.info(f"\n{'='*60}")
     logger.info(f"  Done. Outputs at: outputs/{paper_id}/")

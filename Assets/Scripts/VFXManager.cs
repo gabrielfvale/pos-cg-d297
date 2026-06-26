@@ -22,7 +22,10 @@ public class VFXManager : MonoBehaviour
     }
 
     [SerializeField]
-    private List<VFXEntry> effects = new();
+    public List<VFXEntry> effects = new();
+
+    public void AddEffect(VFXEntry entry) => effects.Add(entry);
+    public void ClearEffects() => effects.Clear();
 
     private void Start()
     {

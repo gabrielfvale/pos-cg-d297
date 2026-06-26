@@ -11,7 +11,7 @@ v5 (Unit system — matches Prompt Library v2):
   - Old Card/CardManifest/ReviewedCardManifest kept as aliases for backward compat
     with existing 07_reviewer_output.json files from v4 runs.
 """
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Any, Dict, List, Literal, Optional
 
 
@@ -226,7 +226,15 @@ class Unit(BaseModel):
     # card fields
     title:           Optional[str]         = Field(None, max_length=30)
     category:        Optional[str]         = None
-    summary:         Optional[str]         = Field(None, max_length=80)
+    summary:         Optional[str]         = None
+
+    @field_validator("summary", mode="before")
+    @classmethod
+    def truncate_summary(cls, v):
+        """Truncate summary to 80 chars instead of raising a validation error."""
+        if v and len(v) > 80:
+            return v[:77] + "..."
+        return v
     contentType:     Optional[CONTENT_TYPES] = None
     content:         Optional[CardContent] = None
     conceptualOrigin: Optional[str]        = None

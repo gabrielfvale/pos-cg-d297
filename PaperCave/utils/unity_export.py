@@ -4,8 +4,8 @@ utils/unity_export.py
 Copies the final pipeline output (manifest.json + referenced FIG_*.png images)
 into Assets/PaperCaveData/{paper_id}/ so the Unity Editor can load them.
 
-Runs flatten_stacks_for_compat automatically so Unity always gets a flat
-card list regardless of whether the manifest contains stacks.
+Stacks are preserved as-is in the manifest; Unity's PaperCaveSceneBuilder3D
+handles them natively via type="stack" units.
 
 Usage:
   python -m utils.unity_export <paper_id>
@@ -18,12 +18,11 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import shutil
 import sys
 from pathlib import Path
-
-from utils.flatten_for_compat import flatten_stacks_for_compat
 
 
 def export_to_unity(
@@ -50,7 +49,7 @@ def export_to_unity(
         )
 
     manifest_dict = json.loads(reviewer_output.read_text(encoding="utf-8"))
-    flat_manifest = flatten_stacks_for_compat(manifest_dict)
+    flat_manifest = _strip_unity_irrelevant(manifest_dict)
 
     # Destination folders
     dest_root   = assets_root / "PaperCaveData" / paper_id
@@ -78,6 +77,26 @@ def export_to_unity(
     return manifest_path
 
 
+def _strip_unity_irrelevant(manifest: dict) -> dict:
+    """Remove fields that only serve the Python pipeline and have no function in Unity."""
+    m = copy.deepcopy(manifest)
+
+    for key in ("objectScores", "totalAttempts", "assembledFromMultipleAttempts",
+                "implementationNotes", "flattenedFromStacks"):
+        m.pop(key, None)
+
+    for unit in m.get("units", []):
+        for key in ("conceptualOrigin", "whyThisUnit"):
+            unit.pop(key, None)
+        if isinstance(unit.get("styleHint"), dict):
+            unit["styleHint"].pop("colorName", None)
+        for item in unit.get("items") or []:
+            for key in ("conceptualOrigin", "whyThisUnit"):
+                item.pop(key, None)
+
+    return m
+
+
 def _copy_figures(
     manifest: dict,
     paper_id: str,
@@ -89,13 +108,18 @@ def _copy_figures(
     Finds all assetReference values (e.g. "FIG1") in the manifest, resolves
     them to FIG_*.png filenames, and copies them from the paper folder.
     """
-    # Collect all unique asset references
+    # Collect all unique asset references (flat units and stack items)
     refs: set[str] = set()
     for unit in manifest.get("units", []):
         content = unit.get("content") or {}
         ref = content.get("assetReference")
         if ref:
             refs.add(ref)
+        for item in unit.get("items") or []:
+            item_content = item.get("content") or {}
+            item_ref = item_content.get("assetReference")
+            if item_ref:
+                refs.add(item_ref)
 
     if not refs:
         return 0, 0
