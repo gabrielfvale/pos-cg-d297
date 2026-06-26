@@ -31,11 +31,18 @@ analyze_images:
     what it shows and how it relates to the paper's central contribution.
     If you have visual access to the image file, use mode="visual".
     If inferring from caption and context only, use mode="text_inferred".
+    
+    You must classify each figure under the field `visualType` using one of:
+      - "photo_or_screenshot": Real-world photos, 3D avatars, or in-game/interface screenshots.
+      - "chart_or_graph": Data charts (bar charts, line graphs, scatter plots) showing quantitative evaluation.
+      - "diagram_or_flowchart": Abstract system architectures, network node topologies, or step-by-step algorithms.
+      - "table_image": Raw grid tables printed as images.
+
     Return ONLY valid JSON following the ImageInsights schema.
   expected_output: >
     Valid JSON with insights for each figure:
     filename (e.g. "FIG1.png"), description (1-2 sentences),
-    relevance (how it relates to the paper's contribution), and mode.
+    relevance (how it relates to the paper's contribution), mode, and visualType.
 
 extract:
   description: >
@@ -51,76 +58,55 @@ extract:
   expected_output: >
     Valid JSON with paperTitle, centralContribution, and a list of 8-10 elements,
     each with name, category, description, relevanceScore, justification,
-    and groupingHint (the name of a related element, or null).
-
-map:
+    and groupingHint (the name of a related element, or nullmap:
   description: >
-    Based on the extracted elements provided by the previous agent,
-    produce a Unit Manifest with exactly {card_count} draggable units
-    following the UnitManifest schema.
+    Com base nas informações do paper e nas classificações visuais das figuras fornecidas pelo Vision Analyst,
+    produza um Unit Manifest organizando as cartas estritamente nas 6 categorias a seguir:
 
-    A DRAGGABLE UNIT is either:
-      - A single CARD (type="card") with one content item.
-      - A STACK (type="stack") with 2-4 card items grouped as one draggable piece.
+    1. graphical_representation (Tipo: "card", priority="secondary" ou "primary"):
+       - O elemento visual (figura) mais importante de todo o paper (ex: o diagrama geral da arquitetura, pipeline ou pipeline terminal).
+       - Selecione a FIG mais representativa para ser esta carta (contentType="figure" com assetReference correspondente).
+       - IMPORTANTE: Esta figura é excluída de qualquer outra stack abaixo.
+       - Se o paper não tiver figuras, descreva conceitualmente (contentType="text_panel").
 
-    unitCount counts draggable units (cards + stacks combined), not individual items.
+    2. abstract (Tipo: "card", priority="secondary"):
+       - Resumo objetivo do paper (contentType="text_panel").
 
-    Unit count required: {card_count}
+    3. contribution (Tipo: "card", priority="primary"):
+       - A contribuição principal e inovação do paper (contentType="text_panel"). Deve ser a única carta com priority="primary" (geralmente id="unit_01").
+
+    4. image (Tipo: "stack", priority="secondary"):
+       - Stack contendo de 2 a 4 sub-cartas (items) com figuras do paper classificadas pelo Vision Analyst como "photo_or_screenshot" ou "diagram_or_flowchart".
+       - Exclua a figura que já foi usada em "graphical_representation".
+       - contentType de cada item deve ser "figure" com seu assetReference correspondente.
+
+    5. graph (Tipo: "stack", priority="secondary"):
+       - Stack contendo de 2 a 4 sub-cartas (items) correspondentes aos gráficos e representações quantitativas do paper (Figuras classificadas como "chart_or_graph").
+       - IMPORTANTE: Não confunda "graph" de gráfico de barras/linhas com "graph" de grafos de redes de nós/fluxogramas (que devem ser mapeados como "diagram_or_flowchart" em "image").
+       - Use contentType="figure" e o correspondente assetReference (ex: FIG3 ou FIG1_2) para exibir a imagem do gráfico, e inclua quaisquer dados numéricos extraídos em content.data.
+
+    6. table (Tipo: "stack", priority="secondary"):
+       - Stack contendo de 2 a 4 sub-cartas (items) correspondentes às tabelas de dados do paper (incluindo figuras classificadas como "table_image" convertidas para texto estruturado).
+       - Cada item deve conter as colunas e linhas com dados reais do paper em content.data.
+
+    REGRAS CRÍTICAS:
+    - O número total de draggable units (cards + stacks) gerados deve ser colocado em unitCount e deve ser exatamente igual ao tamanho da lista de units criada.
+    - Se uma categoria de stack (image, graph, table) não tiver elementos no paper, não gere essa unidade. O total de unidades geradas variará de 3 a 6.
+    - Limites de caracteres:
+      - title (cards) / stackLabel (stacks): máximo 30 caracteres.
+      - summary (single cards only): máximo 80 caracteres.
+      - frames de animação não são necessários (remova templates antigos).
+      - Todos os dados numéricos de tabelas/gráficos devem vir limpos em content.data.
 
     {available_figures}
-
     {asset_catalog_section}
-
     {visual_style_section}
 
-    WHEN TO USE A STACK:
-    Group items into a stack when they:
-    - Come from the same section or table in the paper
-    - Are naturally compared (two evaluation conditions, two modules)
-    - Form a logical sequence worth browsing together
-    - Would each be too thin to stand alone as individual units
-    Use the groupingHint from the Extractor to guide stack decisions.
-
-    WHEN TO USE A SINGLE CARD:
-    - The primary contribution (ALWAYS a single card, NEVER a stack)
-    - Any concept that stands clearly on its own
-    - Items likely to be placed separately in the experience
-
-    CONTENT TYPES (per card or stack item):
-      figure     — real paper figure. content.assetReference = "FIG1", "FIG2", etc.
-                   Only use when a FIG*.png actually exists in the paper folder.
-      chart      — quantitative data with bars/grouped bars.
-                   Include EXACT paper values in content.data.
-      table      — tabular data. Include EXACT paper values in content.data.
-      animation  — sequential process. 2-4 frames with label (max 20 chars)
-                   and description (max 120 chars).
-      text_panel — for purely textual concepts with no visual representation.
-
-    CRITICAL FIELD CONSTRAINTS:
-    - title (cards) / stackLabel (stacks): maximum 30 characters
-    - summary (single cards only): maximum 80 characters, one complete sentence
-    - animation frame label: maximum 20 characters
-    - animation frame description: maximum 120 characters
-    - stack items: 2 to 4 items per stack
-
-    SELECTION RULES:
-    1. Exactly 1 unit must have priority="primary" — always a single card (type="card"),
-       always the paper's central contribution, always id="unit_01"
-    2. All other units have priority="secondary"
-    3. At least 1 unit/item must use contentType="figure" if paper figures exist
-    4. At least 1 unit/item must use contentType="chart" or "table" if
-       quantitative data exists — with real values in content.data
-    5. Variety of contentType across units
-
-    Return ONLY valid JSON following the UnitManifest schema.
-    No additional text, no markdown.
+    Retorne APENAS o JSON válido seguindo o schema UnitManifest.
   expected_output: >
-    Valid JSON with paperTitle, centralContribution, unitCount={card_count},
-    and exactly {card_count} units. Each card unit must have: id (unit_01...),
-    type, priority, title (<=30 chars), category, summary (<=80 chars),
-    contentType, content, conceptualOrigin, whyThisUnit, and styleHint.
-    Each stack unit must have: id, type="stack", priority="secondary",
-    stackLabel (<=30 chars), category, whyThisUnit, styleHint, and items (2-4).
+    JSON válido contendo paperTitle, centralContribution, unitCount (quantidade de unidades geradas, entre 3 e 6),
+    e a lista de units seguindo exatamente as 6 categorias definidas. Cada unit deve ter: id (unit_01...),
+    type ("card" ou "stack"), priority, title/stackLabel, category (uma das 6 listadas), contentType, content, styleHint.stadas), contentType, content, styleHint.
 
 map_simple:
   description: >

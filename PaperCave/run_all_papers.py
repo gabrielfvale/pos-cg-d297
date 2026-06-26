@@ -194,7 +194,7 @@ def run_all(
     print(f"{'='*66}\n")
 
     from crew import run as crew_run
-    from utils.unity_export import export_to_unity
+    from utils.unity_asset_exporter import export_assets_to_unity
 
     results: list[dict] = []
 
@@ -259,10 +259,10 @@ def run_all(
         # ── Unity export (imediato, só se pipeline ok) ─────────────────────
         if not skip_export and "ok" in status["pipeline"]:
             try:
-                export_to_unity(
-                    paper_id     = paper_id,
-                    outputs_root = OUTPUTS_DIR,
-                    verbose      = True,
+                export_assets_to_unity(
+                    paper_id=paper_id,
+                    paper_folder=paper_folder,
+                    unity_project_root=Path("..")
                 )
                 status["export"] = "ok"
             except FileNotFoundError as e:

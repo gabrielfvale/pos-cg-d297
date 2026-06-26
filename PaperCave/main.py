@@ -214,10 +214,14 @@ def cmd_export(args) -> None:
 
 
 def _do_export(paper_id: str) -> None:
-    from utils.unity_export import export_to_unity
-    outputs_root = Path(__file__).parent / "outputs"
+    from utils.unity_asset_exporter import export_assets_to_unity
+    paper_folder = Path("papers") / paper_id
     try:
-        export_to_unity(paper_id=paper_id, outputs_root=outputs_root, verbose=True)
+        export_assets_to_unity(
+            paper_id=paper_id,
+            paper_folder=paper_folder,
+            unity_project_root=Path(".."),
+        )
         print(f"  Export concluído: Assets/PaperCaveData/{paper_id}/")
     except FileNotFoundError as e:
         print(f"  Export falhou (arquivo não encontrado): {e}")

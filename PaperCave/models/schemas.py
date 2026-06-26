@@ -121,6 +121,7 @@ class ImageInsight(BaseModel):
     description: str
     relevance: str
     mode: Literal["visual", "text_inferred"]
+    visualType: Literal["photo_or_screenshot", "chart_or_graph", "diagram_or_flowchart", "table_image"]
 
 
 class ImageInsights(BaseModel):
@@ -128,14 +129,16 @@ class ImageInsights(BaseModel):
     insights: List[ImageInsight]
 
 
-# ── Extractor output (v3) ─────────────────────────────────────────────────────
+CONTENT_TYPES = Literal["figure", "chart", "table", "animation", "text_panel"]
+CATEGORIES    = Literal[
+    "graphical_representation", "abstract", "contribution",
+    "image", "graph", "table"
+]
+
 
 class ConceptualElement(BaseModel):
     name: str
-    category: Literal[
-        "problem", "method", "dataset", "metric", "result",
-        "contribution", "limitation", "character", "artifact", "relation"
-    ]
+    category: CATEGORIES
     description: str
     relevanceScore: int = Field(ge=1, le=10)
     justification: str
@@ -198,12 +201,6 @@ class CardContent(BaseModel):
 
 # ── v5 Unit system (Prompt Library v2) ────────────────────────────────────────
 
-CONTENT_TYPES = Literal["figure", "chart", "table", "animation", "text_panel"]
-CATEGORIES    = Literal[
-    "contribution", "method", "problem", "metric", "result",
-    "limitation", "dataset", "artifact", "relation"
-]
-
 
 class StackItem(BaseModel):
     """An individual item inside a stack unit."""
@@ -225,7 +222,7 @@ class Unit(BaseModel):
 
     # card fields
     title:           Optional[str]         = Field(None, max_length=30)
-    category:        Optional[str]         = None
+    category:        Optional[CATEGORIES]  = None
     summary:         Optional[str]         = None
 
     @field_validator("summary", mode="before")

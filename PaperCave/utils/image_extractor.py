@@ -2,95 +2,287 @@
 utils/image_extractor.py
 Canonical figure extraction from academic paper PDFs.
 
-Extracts only *real* figures — those with a nearby "Fig N / Figure N / Figura N"
-caption — discarding logos, decorations, and other non-figure images.
-
-Multi-line captions are handled by collecting all text blocks within a spatial
-window around the image, joining their text, and running the caption regex over
-the joined string.  Two-column layouts are supported via position-based block
-selection (x-overlap filtering).
-
-Public API:
-  extract_figures_from_pdf(paper_folder, pdf_path, ...)
-    → dict[str, str]   {fig_number: caption_text}
-    Also writes FIG_<N>.png and captions.txt to paper_folder.
-    Clears existing FIG_*.png before writing (no stale files from failed runs).
+Extracts figures using a Caption-Driven approach. It locates captions in the PDF text,
+defines the figure region (above or below the caption) by grouping vector drawings and
+physical images, renders the region as a high-quality print, and slices any germinated
+sub-figures horizontally and vertically using a grid-aware layout analysis.
 """
 import re
 import fitz  # pymupdf
 from pathlib import Path
+from PIL import Image
+import io
 
 MIN_WIDTH  = 80
 MIN_HEIGHT = 80
-CAPTION_BELOW_PT  = 150   # points below image bottom to search for caption
-CAPTION_ABOVE_PT  = 60    # points above image top (caption-before-figure style)
-X_MARGIN          = 30    # horizontal tolerance for block–image alignment
 MAX_CAPTION_CHARS = 500   # truncate very long captions
 
 _CAPTION_START = re.compile(
-    r"(Fig\.?\s*(\d+[a-zA-Z]?)"
-    r"|Figure\s+(\d+[a-zA-Z]?)"
-    r"|Figura\s+(\d+[a-zA-Z]?))",
-    re.IGNORECASE,
+    r"^\s*(?:[Ff]ig\.?\s*|[Ff]igure\s+|[Ff]igura\s+|FIG\.?\s*|FIGURE\s+|FIGURA\s+)(\d+(?:\([a-zA-Z]\))?|\d+[a-zA-Z]?)(?:[:.\-\u2013\u2014]|\s+[A-Z\"'\[({\*•]|\s*$)"
 )
 
+# ── Column-Aware Page Analysis Helper Functions ──────────────────────────────
 
-# ── Spatial helpers ────────────────────────────────────────────────────────────
+def are_captions_in_same_column(cap1_rect, cap2_rect, page_width: float) -> bool:
+    mid_x = page_width / 2
+    cap1_left = cap1_rect.x1 < mid_x + 30
+    cap1_right = cap1_rect.x0 > mid_x - 30
+    cap2_left = cap2_rect.x1 < mid_x + 30
+    cap2_right = cap2_rect.x0 > mid_x - 30
+    
+    # If either spans across the middle flow (full-width), they share vertical context
+    if (not cap1_left and not cap1_right) or (not cap2_left and not cap2_right):
+        return True
+        
+    # If one is left and the other is right, they are in different columns
+    if (cap1_left and cap2_right) or (cap1_right and cap2_left):
+        return False
+        
+    return True
 
-def _x_overlaps(bx0: float, bx1: float, ix0: float, ix1: float) -> bool:
-    return bx1 > ix0 - X_MARGIN and bx0 < ix1 + X_MARGIN
+
+def is_in_same_column(rect, caption_rect, page_width: float) -> bool:
+    mid_x = page_width / 2
+    cap_left = caption_rect.x1 < mid_x + 30
+    cap_right = caption_rect.x0 > mid_x - 30
+    
+    # Full-width caption can match components anywhere horizontally
+    if not cap_left and not cap_right:
+        return True
+        
+    rect_left = rect.x1 < mid_x + 10
+    rect_right = rect.x0 > mid_x - 10
+    
+    if cap_left:
+        # Caption is left, ignore right-column components
+        return not rect_right
+    if cap_right:
+        # Caption is right, ignore left-column components
+        return not rect_left
+        
+    return True
+
+# ── Symmetry-Aware Grid Slicing ──────────────────────────────────────────────
+
+def slice_block_vertically(img: Image.Image, min_blank_width: int, tolerance: int) -> list[Image.Image]:
+    w, h = img.size
+    img_rgb = img.convert("RGB")
+    pixels = img_rgb.load()
+    
+    blank_cols = []
+    for x in range(w):
+        non_white = 0
+        for y in range(h):
+            r, g, b = pixels[x, y]
+            if r < tolerance or g < tolerance or b < tolerance:
+                non_white += 1
+        # Noise-tolerant check: allows up to 1% of column pixels to be non-white
+        blank_cols.append(non_white <= max(1, int(0.01 * h)))
+        
+    gaps = []
+    in_gap = False
+    start = 0
+    for i in range(w):
+        if blank_cols[i]:
+            if not in_gap:
+                start = i
+                in_gap = True
+        else:
+            if in_gap:
+                gaps.append((start, i, i - start))
+                in_gap = False
+    if in_gap:
+        gaps.append((start, w, w - start))
+        
+    valid_gaps = [g for g in gaps if g[0] > 5 and g[1] < w - 5 and g[2] >= min_blank_width]
+    if not valid_gaps:
+        return [img]
+        
+    parts = []
+    prev_x = 0
+    split_points = [g[0] + g[2]//2 for g in valid_gaps] + [w]
+    
+    # Pre-check all parts for safety
+    for sx in split_points:
+        pw = sx - prev_x
+        # If any cell is too small or aspect ratio is extreme, reject slicing
+        if pw < 50:
+            return [img]
+        aspect = pw / h
+        if aspect < 0.22 or aspect > 4.5:
+            return [img]
+        prev_x = sx
+        
+    # Slicing is safe, crop columns
+    prev_x = 0
+    for sx in split_points:
+        parts.append(img.crop((prev_x, 0, sx, h)))
+        prev_x = sx
+    return parts
 
 
-def _blocks_in_band(
-    blocks: list,
-    y_min: float, y_max: float,
-    ix0: float, ix1: float,
-) -> list:
-    return sorted(
-        [b for b in blocks
-         if b[1] >= y_min and b[1] <= y_max
-         and _x_overlaps(b[0], b[2], ix0, ix1)],
-        key=lambda b: b[1],
-    )
+def slice_block_horizontally(img: Image.Image, min_blank_height: int, tolerance: int) -> list[Image.Image]:
+    w, h = img.size
+    img_rgb = img.convert("RGB")
+    pixels = img_rgb.load()
+    
+    blank_rows = []
+    for y in range(h):
+        non_white = 0
+        for x in range(w):
+            r, g, b = pixels[x, y]
+            if r < tolerance or g < tolerance or b < tolerance:
+                non_white += 1
+        blank_rows.append(non_white <= max(1, int(0.01 * w)))
+        
+    gaps = []
+    in_gap = False
+    start = 0
+    for i in range(h):
+        if blank_rows[i]:
+            if not in_gap:
+                start = i
+                in_gap = True
+        else:
+            if in_gap:
+                gaps.append((start, i, i - start))
+                in_gap = False
+    if in_gap:
+        gaps.append((start, h, h - start))
+        
+    valid_gaps = [g for g in gaps if g[0] > 5 and g[1] < h - 5 and g[2] >= min_blank_height]
+    if not valid_gaps:
+        return [img]
+        
+    parts = []
+    prev_y = 0
+    split_points = [g[0] + g[2]//2 for g in valid_gaps] + [h]
+    
+    # Pre-check all parts for safety
+    for sy in split_points:
+        ph = sy - prev_y
+        if ph < 50:
+            return [img]
+        aspect = w / ph
+        if aspect < 0.22 or aspect > 4.5:
+            return [img]
+        prev_y = sy
+        
+    # Slicing is safe, crop rows
+    prev_y = 0
+    for sy in split_points:
+        parts.append(img.crop((0, prev_y, w, sy)))
+        prev_y = sy
+    return parts
 
 
-# ── Caption extraction ─────────────────────────────────────────────────────────
+def slice_block(img: Image.Image, min_blank_width: int = 5, tolerance: int = 245) -> list[Image.Image]:
+    w, h = img.size
+    if w < 150 or h < 150:
+        return [img]
+        
+    img_rgb = img.convert("RGB")
+    pixels = img_rgb.load()
+    
+    # Calculate non-white pixel density to identify graphs/charts
+    non_white_count = 0
+    for x in range(w):
+        for y in range(h):
+            r, g, b = pixels[x, y]
+            if r < tolerance or g < tolerance or b < tolerance:
+                non_white_count += 1
+    density = non_white_count / (w * h)
+    
+    # Graphs and sparse diagrams have low density (< 20%) and should not be sliced
+    if density < 0.20:
+        return [img]
+        
+    blank_cols = []
+    for x in range(w):
+        non_white = 0
+        for y in range(h):
+            r, g, b = pixels[x, y]
+            if r < tolerance or g < tolerance or b < tolerance:
+                non_white += 1
+        blank_cols.append(non_white <= max(1, int(0.01 * h)))
+        
+    blank_rows = []
+    for y in range(h):
+        non_white = 0
+        for x in range(w):
+            r, g, b = pixels[x, y]
+            if r < tolerance or g < tolerance or b < tolerance:
+                non_white += 1
+        blank_rows.append(non_white <= max(1, int(0.01 * w)))
+        
+    def find_gaps(is_blank, length):
+        gaps = []
+        in_gap = False
+        start = 0
+        for i in range(length):
+            if is_blank[i]:
+                if not in_gap:
+                    start = i
+                    in_gap = True
+            else:
+                if in_gap:
+                    gaps.append((start, i, i - start))
+                    in_gap = False
+        if in_gap:
+            gaps.append((start, length, length - start))
+        return gaps
+        
+    col_gaps = find_gaps(blank_cols, w)
+    row_gaps = find_gaps(blank_rows, h)
+    
+    # Filter gaps (ignore margins)
+    valid_col_gaps = [g for g in col_gaps if g[0] > 5 and g[1] < w - 5 and g[2] >= min_blank_width]
+    valid_row_gaps = [g for g in row_gaps if g[0] > 5 and g[1] < h - 5 and g[2] >= min_blank_width]
+    
+    # Slicing decisions
+    if not valid_col_gaps and not valid_row_gaps:
+        return [img]
+        
+    # If both are present, slice horizontally (rows) first, then vertically per row
+    if valid_row_gaps and valid_col_gaps:
+        row_images = []
+        prev_y = 0
+        split_y = [g[0] + g[2]//2 for g in valid_row_gaps] + [h]
+        for sy in split_y:
+            row_img = img.crop((0, prev_y, w, sy))
+            row_images.append(row_img)
+            prev_y = sy
+            
+        final_cells = []
+        for r_img in row_images:
+            final_cells.extend(slice_block_vertically(r_img, min_blank_width, tolerance))
+        return final_cells
+        
+    elif valid_col_gaps:
+        return slice_block_vertically(img, min_blank_width, tolerance)
+    else:
+        return slice_block_horizontally(img, min_blank_width, tolerance)
 
-def _caption_from_blocks(blocks: list) -> tuple[str, str]:
+
+def _split_germinated_image(image_bytes: bytes, min_blank_width: int = 5, tolerance: int = 245) -> list[bytes]:
     """
-    Join text from all blocks and find a 'Fig N' caption.
-    Joining handles multi-line captions that span several PyMuPDF text blocks.
-    Returns (fig_number_str, full_caption_text) or ('', '').
+    Tries to slice a composite/germinated image into sub-figures based on grid layout analysis.
+    Returns a list of image bytes for each slice. If no slice is performed, returns [image_bytes].
     """
-    if not blocks:
-        return "", ""
-    joined = " ".join(b[4].replace("\n", " ").strip() for b in blocks)
-    joined = re.sub(r"\s{2,}", " ", joined)
-    m = _CAPTION_START.search(joined)
-    if not m:
-        return "", ""
-    num = (m.group(2) or m.group(3) or m.group(4) or "").upper()
-    caption = joined[m.start(): m.start() + MAX_CAPTION_CHARS].strip()
-    return num, caption
-
-
-def _find_caption(img_rect: fitz.Rect, text_blocks: list) -> tuple[str, str]:
-    """
-    Find the caption for an image using its bounding box.
-    Searches below first (most journals), then above (caption-before-figure style).
-    Returns (fig_number, caption_text) or ('', '') if no caption found.
-    """
-    iy0, iy1 = img_rect.y0, img_rect.y1
-    ix0, ix1 = img_rect.x0, img_rect.x1
-
-    below = _blocks_in_band(text_blocks, iy1 - 5, iy1 + CAPTION_BELOW_PT, ix0, ix1)
-    num, cap = _caption_from_blocks(below)
-    if num:
-        return num, cap
-
-    above = _blocks_in_band(text_blocks, iy0 - CAPTION_ABOVE_PT, iy0 + 5, ix0, ix1)
-    above = sorted(above, key=lambda b: -b[1])   # closest-first
-    return _caption_from_blocks(above)
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+        parts = slice_block(img, min_blank_width, tolerance)
+        if len(parts) <= 1:
+            return [image_bytes]
+            
+        out_bytes_list = []
+        for p in parts:
+            out = io.BytesIO()
+            p.save(out, format="PNG")
+            out_bytes_list.append(out.getvalue())
+        return out_bytes_list
+    except Exception:
+        return [image_bytes]
 
 
 # ── Cleanup ────────────────────────────────────────────────────────────────────
@@ -117,66 +309,183 @@ def extract_figures_from_pdf(
     verbose: bool = True,
 ) -> dict[str, str]:
     """
-    Extract real figures from a PDF (only those with a nearby 'Fig N' caption).
-
+    Extract figures and graphs from a PDF using a Caption-Driven layout analysis.
+    Renders high-quality regions encompassing drawings and physical images.
     Saves to paper_folder:
-      - FIG_<N>.png  named by actual figure number in the paper
-      - captions.txt  one caption per figure
-
-    Clears existing FIG_*.png before writing — no stale files from failed runs.
-
+      - FIG_<N>.png / FIG_<N>_<X>.png
+      - captions.txt
     Returns dict mapping fig_number string → caption text.
     """
     _clear_figures(paper_folder, verbose)
 
     doc = fitz.open(str(pdf_path))
-    seen_xrefs: set[int] = set()
-    used_numbers: set[str] = set()
     captions: dict[str, str] = {}
-
+    
     for page_num, page in enumerate(doc, 1):
-        text_blocks = [
-            (b[0], b[1], b[2], b[3], b[4])
-            for b in page.get_text("blocks")
-            if b[6] == 0   # text blocks only (not image blocks)
-        ]
-
-        for img_ref in page.get_images(full=True):
-            xref = img_ref[0]
-            if xref in seen_xrefs:
-                continue
-            seen_xrefs.add(xref)
-
+        try:
+            drawings = page.get_drawings()
+        except Exception:
+            drawings = []
+        try:
+            images = page.get_image_info(hashes=False)
+        except Exception:
+            images = []
+            
+        # Extract and sort text blocks to find captions
+        blocks = sorted(page.get_text("blocks"), key=lambda b: (b[1], b[0]))
+        text_blocks = [b for b in blocks if b[6] == 0]
+        
+        captions_on_page = []
+        i = 0
+        while i < len(text_blocks):
+            b = text_blocks[i]
+            text = b[4].replace("\n", " ").strip()
+            m = _CAPTION_START.match(text)
+            if m:
+                fig_num = (m.group(1) or "").upper()
+                caption_rect = fitz.Rect(b[0], b[1], b[2], b[3])
+                caption_text = text
+                
+                # Look ahead for multi-line caption continuations
+                j = i + 1
+                while j < len(text_blocks):
+                    next_b = text_blocks[j]
+                    dy = next_b[1] - caption_rect.y1
+                    if 0 <= dy < 15 and (next_b[0] < caption_rect.x1 + 20 and next_b[2] > caption_rect.x0 - 20):
+                        caption_rect.include_point(fitz.Point(next_b[0], next_b[1]))
+                        caption_rect.include_point(fitz.Point(next_b[2], next_b[3]))
+                        caption_text += " " + next_b[4].replace("\n", " ").strip()
+                        j += 1
+                    else:
+                        break
+                caption_text = re.sub(r"\s{2,}", " ", caption_text).strip()
+                captions_on_page.append({
+                    "fig_num": fig_num,
+                    "rect": caption_rect,
+                    "text": caption_text
+                })
+                i = j
+            else:
+                i += 1
+                
+        # Process each caption
+        for cap in captions_on_page:
+            fig_num = cap["fig_num"]
+            caption_rect = cap["rect"]
+            caption_text = cap["text"]
+            
+            # Determine the search band ABOVE the caption
+            y_max_above = caption_rect.y0 - 2
+            y_min_above = 40
+            for other_cap in captions_on_page:
+                if other_cap != cap:
+                    if are_captions_in_same_column(caption_rect, other_cap["rect"], page.rect.width):
+                        or_rect = other_cap["rect"]
+                        if or_rect.y1 < caption_rect.y0:
+                            y_min_above = max(y_min_above, or_rect.y1)
+                        
+            above_rects = []
+            for d in drawings:
+                dr = d["rect"]
+                # Ignore full-page border lines or backgrounds
+                if dr.width > page.rect.width - 40 and dr.height > page.rect.height - 40:
+                    continue
+                if dr.width > page.rect.width - 60 and dr.height < 5:
+                    continue
+                if dr.y0 >= y_min_above and dr.y1 <= y_max_above + 5:
+                    if is_in_same_column(dr, caption_rect, page.rect.width):
+                        above_rects.append(dr)
+            for img in images:
+                ir = fitz.Rect(img["bbox"])
+                if ir.y0 >= y_min_above and ir.y1 <= y_max_above + 5:
+                    if is_in_same_column(ir, caption_rect, page.rect.width):
+                        above_rects.append(ir)
+                    
+            union_rect = None
+            if above_rects:
+                union_rect = fitz.Rect(above_rects[0])
+                for r in above_rects[1:]:
+                    union_rect.include_point(fitz.Point(r.x0, r.y0))
+                    union_rect.include_point(fitz.Point(r.x1, r.y1))
+                # Add horizontal/vertical padding
+                union_rect.x0 = max(0, union_rect.x0 - 5)
+                union_rect.y0 = max(y_min_above, union_rect.y0 - 5)
+                union_rect.x1 = min(page.rect.width, union_rect.x1 + 5)
+                union_rect.y1 = min(caption_rect.y0 - 2, union_rect.y1 + 5)
+            else:
+                # Try finding components BELOW the caption (typical for tables)
+                y_min_below = caption_rect.y1 + 2
+                y_max_below = page.rect.height - 40
+                for other_cap in captions_on_page:
+                    if other_cap != cap:
+                        if are_captions_in_same_column(caption_rect, other_cap["rect"], page.rect.width):
+                            or_rect = other_cap["rect"]
+                            if or_rect.y0 > caption_rect.y1:
+                                y_max_below = min(y_max_below, or_rect.y0)
+                            
+                below_rects = []
+                for d in drawings:
+                    dr = d["rect"]
+                    if dr.width > page.rect.width - 40 and dr.height > page.rect.height - 40:
+                        continue
+                    if dr.width > page.rect.width - 60 and dr.height < 5:
+                        continue
+                    if dr.y0 >= y_min_below - 5 and dr.y1 <= y_max_below:
+                        if is_in_same_column(dr, caption_rect, page.rect.width):
+                            below_rects.append(dr)
+                for img in images:
+                    ir = fitz.Rect(img["bbox"])
+                    if ir.y0 >= y_min_below - 5 and ir.y1 <= y_max_below:
+                        if is_in_same_column(ir, caption_rect, page.rect.width):
+                            below_rects.append(ir)
+                        
+                if below_rects:
+                    union_rect = fitz.Rect(below_rects[0])
+                    for r in below_rects[1:]:
+                        union_rect.include_point(fitz.Point(r.x0, r.y0))
+                        union_rect.include_point(fitz.Point(r.x1, r.y1))
+                    union_rect.x0 = max(0, union_rect.x0 - 5)
+                    union_rect.y0 = max(caption_rect.y1 + 2, union_rect.y0 - 5)
+                    union_rect.x1 = min(page.rect.width, union_rect.x1 + 5)
+                    union_rect.y1 = min(y_max_below, union_rect.y1 + 5)
+                    
+            if not union_rect or union_rect.width < 10 or union_rect.height < 10:
+                # Fallback to the region above the caption
+                union_rect = fitz.Rect(
+                    max(0, caption_rect.x0 - 20),
+                    max(40, caption_rect.y0 - 220),
+                    min(page.rect.width, caption_rect.x1 + 20),
+                    caption_rect.y0 - 2
+                )
+                
             try:
-                base_image = doc.extract_image(xref)
-            except Exception:
+                # Render using clip at 2x scale (144 DPI)
+                pix = page.get_pixmap(clip=union_rect, matrix=fitz.Matrix(2, 2))
+                img_bytes = pix.tobytes("png")
+            except Exception as e:
+                if verbose:
+                    print(f"    [Extractor] Erro ao renderizar FIG_{fig_num}: {e}")
                 continue
-
-            w, h = base_image["width"], base_image["height"]
-            if w < min_width or h < min_height:
-                continue
-
-            rects = page.get_image_rects(xref)
-            if not rects:
-                continue
-
-            fig_num, caption = _find_caption(rects[0], text_blocks)
-            if not fig_num:
-                continue   # no caption found — not a paper figure
-            if fig_num in used_numbers:
-                continue   # duplicate (same figure number already saved)
-            used_numbers.add(fig_num)
-
-            dest = paper_folder / f"FIG_{fig_num}.png"
-            dest.write_bytes(base_image["image"])
-            captions[fig_num] = caption
-
-            if verbose:
-                short = caption[:72].replace("\n", " ")
-                print(f"    FIG_{fig_num}.png  ({w}×{h}px, pág.{page_num})  {short}")
-
+                
+            parts = _split_germinated_image(img_bytes)
+            
+            if len(parts) == 1:
+                dest = paper_folder / f"FIG_{fig_num}.png"
+                dest.write_bytes(parts[0])
+                captions[fig_num] = caption_text
+                if verbose:
+                    print(f"    FIG_{fig_num}.png  (pág.{page_num})  {caption_text[:72]}")
+            else:
+                for idx, part_bytes in enumerate(parts, 1):
+                    sub_fig_num = f"{fig_num}_{idx}"
+                    dest = paper_folder / f"FIG_{sub_fig_num}.png"
+                    dest.write_bytes(part_bytes)
+                    captions[sub_fig_num] = caption_text
+                    if verbose:
+                        print(f"    FIG_{sub_fig_num}.png  (composta/cortada, pág.{page_num})  {caption_text[:72]}")
+                        
     doc.close()
-
+    
     if captions:
         lines = []
         for num in sorted(captions, key=lambda x: (len(x), x)):
@@ -186,14 +495,14 @@ def extract_figures_from_pdf(
         (paper_folder / "captions.txt").write_text(
             "\n".join(lines), encoding="utf-8"
         )
-
+        
     if verbose:
         print(f"    Total: {len(captions)} figura(s) extraída(s).")
-
+        
     return captions
 
 
-# ── Legacy shim (kept so old imports don't break) ─────────────────────────────
+# ── Legacy shim ────────────────────────────────────────────────────────────────
 
 def load_image_bytes(raw_dir: Path, raw_filename: str) -> bytes:
     return (raw_dir / raw_filename).read_bytes()

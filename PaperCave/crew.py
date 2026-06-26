@@ -56,6 +56,7 @@ from utils.paper_context_loader import (
     update_figure_captions,
     _build_map_task_description,
 )
+from utils.unity_asset_exporter import export_assets_to_unity
 from crew_agents import (
     make_reader_agent,
     make_summarizer_agent,
@@ -837,6 +838,17 @@ def run(
                 step.done(f"{reviewed.unitCount} unidade(s)")
             else:
                 step.fail("sem resultado")
+
+    if reviewed:
+        try:
+            logger.info("  [Export] Iniciando exportação automática para a pasta de assets do Unity...")
+            export_assets_to_unity(
+                paper_id=paper_id,
+                paper_folder=Path(paper_folder),
+                unity_project_root=Path("..")
+            )
+        except Exception as e:
+            logger.warning(f"  [Export] Falha na exportação automática para o Unity: {e}")
 
     logger.info(f"\n{'='*60}")
     logger.info(f"  Done. Outputs at: outputs/{paper_id}/")
